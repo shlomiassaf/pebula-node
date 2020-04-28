@@ -1,0 +1,98 @@
+import { Sender, Receiver, ServiceBusClient, ReceiveMode, SessionReceiverOptions, SessionReceiver } from '@azure/service-bus';
+
+import { SbResourceGroup } from '../resource-group';
+import { SbChannelManagerContainerStore } from './channel-manager-container-store';
+
+export class SbChannelManager {
+  private rxClient: ServiceBusClient;
+  private txClient: ServiceBusClient;
+  private containers = new SbChannelManagerContainerStore();
+
+  constructor(public readonly resourceGroup: SbResourceGroup) { }
+
+  resourceUpdate(): void {
+    const { server, client } = this.resourceGroup;
+
+    this.rxClient = server ? server.client : client.client;
+    this.txClient = client ? client.client : server.client;
+    this.containers.updateClients(this.rxClient, this.txClient);
+  }
+
+  getQueryReceiver(name: string): Receiver | SessionReceiver | undefined {
+    const queueContainer = this.containers.findQueue(name);
+    if (queueContainer) {
+      return queueContainer.receiver;
+    }
+  }
+
+  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode): Receiver;
+  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions: SessionReceiverOptions): SessionReceiver;
+  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
+    const queueContainer = this.containers.findQueue(name, 'rx');
+    if (!queueContainer.receiver) {
+      queueContainer.receiver = sessionReceiverOptions
+        ? queueContainer.client.createReceiver(receiveMode, sessionReceiverOptions)
+        : queueContainer.client.createReceiver(receiveMode)
+      ;
+    }
+    return queueContainer.receiver;
+  }
+
+  getQuerySender(name: string): Sender | undefined {
+    const queueContainer = this.containers.findQueue(name);
+    if (queueContainer) {
+      return queueContainer.sender;
+    }
+  }
+
+  getCreateQuerySender(name: string): Sender {
+    const queueContainer = this.containers.findQueue(name, 'tx');
+    if (!queueContainer.sender) {
+      queueContainer.sender = queueContainer.client.createSender();
+    }
+    return queueContainer.sender;
+  }
+
+  getTopicSender(name: string): Sender | undefined {
+    const topicContainer = this.containers.findTopic(name);
+    if (topicContainer) {
+      return topicContainer.sender;
+    }
+  }
+
+  getCreateTopic(topicName: string): Sender {
+    const topicContainer = this.containers.findTopic(topicName, 'tx');
+    if (!topicContainer.sender) {
+      topicContainer.sender = topicContainer.client.createSender();
+    }
+    return topicContainer.sender;
+  }
+
+  getSubscription(topicName: string, subscriptionName: string): Receiver | SessionReceiver | undefined {
+    const topicContainer = this.containers.findTopic(topicName);
+    const subscriptionContainer = topicContainer && this.containers.findSubscription(topicContainer, subscriptionName);
+    if (subscriptionContainer) {
+      return subscriptionContainer.receiver;
+    }
+  }
+
+  getCreateSubscription(topicName: string, subscriptionName: string, receiveMode: ReceiveMode): Receiver;
+  getCreateSubscription(topicName: string,
+                        subscriptionName: string,
+                        receiveMode: ReceiveMode,
+                        sessionReceiverOptions: SessionReceiverOptions): SessionReceiver;
+  getCreateSubscription(topicName: string,
+                        subscriptionName: string, receiveMode: ReceiveMode,
+                        sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
+    const topicContainer = this.containers.findTopic(topicName, 'rx');
+    const subscriptionContainer = this.containers.findSubscription(topicContainer, subscriptionName, 'rx');
+    if (!subscriptionContainer.receiver) {
+      subscriptionContainer.receiver = sessionReceiverOptions
+        ? subscriptionContainer.client.createReceiver(receiveMode, sessionReceiverOptions)
+        : subscriptionContainer.client.createReceiver(receiveMode)
+      ;
+    }
+    return subscriptionContainer.receiver;
+  }
+
+}

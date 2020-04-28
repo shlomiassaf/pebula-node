@@ -1,0 +1,78 @@
+{
+  "name": "@pebula/nest-sbus",
+  "version": "0.0.1",
+  "main": "cjs/index.js",
+  "types": "cjs/index.d.ts",
+  "files": [
+    "cjs",
+    "src",
+    "arm-adapter",
+    "tasks"
+  ],
+  "scripts": {
+    "clean": "rimraf ./cjs",
+    "prebuild": "yarn clean",
+    "build": "tsc -p tsconfig.json",
+    "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
+    "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
+    "lint": "eslint --fix './src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@azure/arm-servicebus": "^3.2.0",
+    "@nestjs/common": "^7.0.0",
+    "@nestjs/core": "^7.0.0",
+    "@nestjs/microservices": "^7.0.5",
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.13.4",
+    "jest": "^25.4.0",
+    "ts-jest": "^25.4.0",
+    "typescript": "~3.7.5",
+    "utility-types": "^3.10.0"
+  },
+  "peerDependencies": {
+    "@azure/arm-servicebus": "^3.2.0",
+    "@nestjs/common": "^7.0.0",
+    "@nestjs/core": "^7.0.0",
+    "@nestjs/microservices": "^7.0.5",
+    "rxjs": "^6.0.0"
+  },
+  "dependencies": {
+    "@azure/amqp-common": "1.0.0-preview.13",
+    "@azure/core-http": "^1.0.0",
+    "@azure/service-bus": "^1.1.5",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "execPluginConfig": {
+    "isLib": true,
+    "ghDocusaurus": "website",
+    "apiExtractor": {
+      "dtsRollup": {
+        "enabled": false
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shlomiassaf/pebula-node.git"
+  },
+  "author": "Shlomi Assaf",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shlomiassaf/pebula-node/issues"
+  },
+  "homepage": "https://github.com/shlomiassaf/pebula-node/tree/master/packages/nest-sbus",
+  "keywords": [
+    "azure",
+    "cloud",
+    "service bus",
+    "AMQP",
+    "nestjs",
+    "microservice"
+  ]
+}

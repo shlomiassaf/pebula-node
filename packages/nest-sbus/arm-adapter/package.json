@@ -1,0 +1,5 @@
+{
+  "name": "@pebula/nest-sbus_arm-adapter",
+  "main": "../cjs/arm-adapter/index.js",
+  "types": "../cjs/arm-adapter/index.d.ts"
+}

@@ -1,27 +1,45 @@
 {
-  "name": "@pebula/node",
+  "name": "pebula",
   "scripts": {
+    "run": "./node_modules/.bin/ts-node ./tools/dynamic-run/index.ts",
+    "clean": "lerna run clean --stream --parallel",
+    "build:libs": "lerna run build:lib --stream --parallel",
+    "build:docs": "lerna run build:docs --stream --parallel",
     "lint": "eslint --fix './src/**/*.ts'",
-    "format": "prettier --write 'src/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts'",
+    "test": "jest",
+    "typecheck": "lerna run typecheck --stream --parallel",
+    "lerna": "lerna",
+    "gh-pages": "./tools/scripts/gh-pages.sh"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.7.13",
+    "@microsoft/tsdoc": "^0.12.19",
+    "@types/inquirer": "^6.5.0",
     "@types/jest": "^25.2.1",
     "@types/node": "^13.13.4",
+    "@types/optimist": "^0.0.29",
     "@typescript-eslint/eslint-plugin": "^2.30.0",
     "@typescript-eslint/parser": "^2.30.0",
-    "@yarnpkg/pnpify": "^2.0.0-rc.21",
     "cross-env": "^7.0.2",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-prettier": "^3.1.3",
+    "find-up": "^4.1.0",
+    "inquirer": "^7.1.0",
     "jest": "^25.4.0",
+    "lerna": "^3.20.2",
+    "optimist": "^0.6.1",
     "prettier": "^2.0.5",
+    "rimraf": "^3.0.2",
     "ts-jest": "^25.4.0",
     "ts-node": "^8.9.1",
+    "tsconfig-paths": "^3.9.0",
+    "typedoc": "~0.16.0",
     "typescript": "~3.7.5"
   },
   "private": true,
   "workspaces": [
-    
+    "packages/**"
   ]
 }

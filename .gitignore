@@ -35,6 +35,8 @@ bower_components
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
 
+.DS_Store
+
 # Dependency directories
 node_modules/
 jspm_packages/
@@ -61,3 +63,8 @@ typings/
 .env
 
 .yarn
+
+.gh-pages-build
+
+dist
+cjs
