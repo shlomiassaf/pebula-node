@@ -77,7 +77,15 @@ module.exports = {
       ],
       copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
     },
+    googleAnalytics: {
+      trackingID: 'UA-11687894-9',
+      // Optional fields.
+      anonymizeIP: true, // Should IPs be anonymized?
+    },
   },
+  plugins: [
+    '@docusaurus/plugin-google-analytics',
+  ],
   presets: [
     [
       '@docusaurus/preset-classic',

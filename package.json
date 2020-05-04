@@ -13,6 +13,7 @@
     "gh-pages": "./tools/scripts/gh-pages.sh"
   },
   "devDependencies": {
+    "@docusaurus/plugin-google-analytics": "^2.0.0-alpha.37",
     "@microsoft/api-extractor": "^7.7.13",
     "@microsoft/tsdoc": "^0.12.19",
     "@types/inquirer": "^6.5.0",
