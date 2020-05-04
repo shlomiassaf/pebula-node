@@ -26,6 +26,6 @@ jobs:
         node-version: ${{ matrix.node-version }}
     - name: Install
       run: yarn install
-    - run: yarn workspaces run typecheck
-    - run: yarn workspaces run test
+    - run: yarn lerna run typecheck --stream
+    - run: yarn lerna run test --stream
     - run: yarn build:libs
