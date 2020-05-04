@@ -1,7 +1,7 @@
 import { from, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Injectable, CallHandler } from '@nestjs/common';
-import { SbInterceptor, SbContext } from '@pebula/nest-sbus';
+import { SbInterceptor, SbContext } from '@pebula/nesbus';
 
 import { completeMessage } from '../rx-operators';
 import { IdempotentAdapter } from './idempotent-adapter';

@@ -1,16 +1,16 @@
 module.exports = {
   title: 'Service Bus extension for NestJS',
   tagline: 'The tagline of my site',
-  url: 'https://shlomiassaf.github.io/pebula-node/nest-sbus',
-  baseUrl: process.env.GH_PAGES_BUILD ? '/pebula-node/nest-sbus/' : '/',
+  url: 'https://shlomiassaf.github.io/pebula-node/nesbus',
+  baseUrl: process.env.GH_PAGES_BUILD ? '/pebula-node/nesbus/' : '/',
   favicon: 'img/favicon.ico',
   organizationName: 'pebula', // Usually your GitHub org/user name.
-  projectName: 'nest-sbus', // Usually your repo name.
+  projectName: 'nesbus', // Usually your repo name.
   themeConfig: {
     navbar: {
-      title: '@pebula/nest-sbus',
+      title: '@pebula/nesbus',
       logo: {
-        alt: '@pebula/nest-sbus',
+        alt: '@pebula/nesbus',
         src: 'img/logo.svg',
       },
       links: [
@@ -22,7 +22,7 @@ module.exports = {
         },
         {to: 'blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nest-sbus',
+          href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus',
           label: 'GitHub',
           position: 'right',
         },
@@ -70,7 +70,7 @@ module.exports = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nest-sbus',
+              href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus',
             },
           ],
         },
@@ -86,13 +86,13 @@ module.exports = {
           sidebarPath: require.resolve('./sidebars.js'),
           // Please change this to your repo.
           editUrl:
-            'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nest-sbus/website/',
+            'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus/website/',
         },
         blog: {
           showReadingTime: true,
           // Please change this to your repo.
           editUrl:
-            'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nest-sbus/website/blog/',
+            'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus/website/blog/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

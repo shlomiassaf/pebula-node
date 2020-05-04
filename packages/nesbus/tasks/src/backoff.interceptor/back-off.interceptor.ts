@@ -1,7 +1,7 @@
 import { from, of } from 'rxjs';
 import { mapTo, catchError } from 'rxjs/operators';
 import { Logger, Injectable, CallHandler, Inject, Optional } from '@nestjs/common';
-import { SbInterceptor, SbContext } from '@pebula/nest-sbus';
+import { SbInterceptor, SbContext } from '@pebula/nesbus';
 
 import { abandonMessage, completeMessage, block } from '../rx-operators';
 import { SB_BACKOFF_RETRY_DEFAULTS } from './constants';

@@ -1,6 +1,6 @@
 import { switchMap, filter } from 'rxjs/operators';
 import { DeadLetterOptions } from '@azure/service-bus';
-import { SbContext } from '@pebula/nest-sbus';
+import { SbContext } from '@pebula/nesbus';
 
 export const completeMessage = () => switchMap( async <T extends SbContext>(ctx: T) => {
   await ctx.getMessage().complete();

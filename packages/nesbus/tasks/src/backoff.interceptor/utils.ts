@@ -1,5 +1,5 @@
 import { ServiceBusMessage } from '@azure/service-bus';
-import { SbMessageEmitter } from '@pebula/nest-sbus';
+import { SbMessageEmitter } from '@pebula/nesbus';
 
 export interface SbBackoffRetryOptions {
   /** The raw delay unit in milliseconds */

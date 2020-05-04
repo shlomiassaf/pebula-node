@@ -1,4 +1,4 @@
-import { SbContext } from '@pebula/nest-sbus';
+import { SbContext } from '@pebula/nesbus';
 
 export abstract class IdempotentAdapter {
   abstract async isIdempotent(ctx: SbContext): Promise<boolean>;
