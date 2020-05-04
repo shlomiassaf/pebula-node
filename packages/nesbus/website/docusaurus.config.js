@@ -4,8 +4,11 @@ module.exports = {
   url: 'https://shlomiassaf.github.io/pebula-node/nesbus',
   baseUrl: process.env.GH_PAGES_BUILD ? '/pebula-node/nesbus/' : '/',
   favicon: 'img/favicon.ico',
-  organizationName: 'pebula', // Usually your GitHub org/user name.
-  projectName: 'nesbus', // Usually your repo name.
+  organizationName: 'pebula',
+  projectName: 'nesbus',
+  customFields: {
+    apiDocsUrl: 'https://shlomiassaf.github.io/pebula-node/nesbus/api-docs',
+  },
   themeConfig: {
     navbar: {
       title: '@pebula/nesbus',
@@ -20,7 +23,7 @@ module.exports = {
           label: 'Docs',
           position: 'left',
         },
-        {to: 'blog', label: 'Blog', position: 'left'},
+        // {to: 'blog', label: 'Blog', position: 'left'},
         {
           href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus',
           label: 'GitHub',
@@ -31,19 +34,19 @@ module.exports = {
     footer: {
       style: 'dark',
       links: [
-        {
-          title: 'Docs',
-          items: [
-            {
-              label: 'Style Guide',
-              to: 'docs/doc1',
-            },
-            {
-              label: 'Second Doc',
-              to: 'docs/doc2',
-            },
-          ],
-        },
+        // {
+        //   title: 'Docs',
+        //   items: [
+        //     {
+        //       label: 'Style Guide',
+        //       to: 'docs/doc1',
+        //     },
+        //     {
+        //       label: 'Second Doc',
+        //       to: 'docs/doc2',
+        //     },
+        //   ],
+        // },
         // {
         //   title: 'Community',
         //   items: [
@@ -64,10 +67,10 @@ module.exports = {
         {
           title: 'More',
           items: [
-            {
-              label: 'Blog',
-              to: 'blog',
-            },
+            // {
+            //   label: 'Blog',
+            //   to: 'blog',
+            // },
             {
               label: 'GitHub',
               href: 'https://github.com/shlomiassaf/pebula-node/tree/master/packages/nesbus',
@@ -75,9 +78,17 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Shlomi Assaf, Inc. Built with Docusaurus.`,
+    },
+    googleAnalytics: {
+      trackingID: 'UA-11687894-9',
+      // Optional fields.
+      anonymizeIP: true, // Should IPs be anonymized?
     },
   },
+  plugins: [
+    '@docusaurus/plugin-google-analytics',
+  ],
   presets: [
     [
       '@docusaurus/preset-classic',

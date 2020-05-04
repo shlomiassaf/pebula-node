@@ -2323,7 +2323,7 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
-"@nestjs/common@^7.0.0":
+"@nestjs/common@^7.0.9":
   version "7.0.9"
   resolved "https://registry.yarnpkg.com/@nestjs/common/-/common-7.0.9.tgz#b2818b0ea4617a37525341fc0233de84abd3c36a"
   integrity sha512-rmx955Oa5qXDuupYpOeT6wVcI5fS3A89Xzf7+yqIB9NFdWht1vdAhAviuBWtWskyGet3PyDiCOUY7LKSXaql5w==
@@ -2334,7 +2334,7 @@
     tslib "1.11.1"
     uuid "7.0.3"
 
-"@nestjs/core@^7.0.0":
+"@nestjs/core@^7.0.9":
   version "7.0.9"
   resolved "https://registry.yarnpkg.com/@nestjs/core/-/core-7.0.9.tgz#7b17c0f844225fc38a24543f3ca598eb266ccb35"
   integrity sha512-+aK0ihzxWOLxUGssx61ogOOe6Jl/Oac+45q/7tAKNNcVvNwh+IJyCx5stA3S4m7yXPCIbI8kjhWd5ugGT4tyoA==
@@ -2347,7 +2347,7 @@
     tslib "1.11.1"
     uuid "7.0.3"
 
-"@nestjs/microservices@^7.0.5":
+"@nestjs/microservices@^7.0.9":
   version "7.0.9"
   resolved "https://registry.yarnpkg.com/@nestjs/microservices/-/microservices-7.0.9.tgz#290faaa46d0d61cbbd0a5b957c615af238e5e486"
   integrity sha512-pSCWj/3wMHtqcJO5CayNRsTlsUzS480Yqd9UjMFJuSCSWyUGzYDSkkNkBfZupovKvJOUglV+jdlNDcWKZutosg==
