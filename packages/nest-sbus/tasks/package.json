@@ -1,5 +1,6 @@
 {
   "name": "@pebula/nest-sbus_tasks",
   "main": "../cjs/tasks/index.js",
-  "types": "../cjs/tasks/index.d.ts"
+  "types": "../cjs/tasks/index.d.ts",
+  "private": true
 }
