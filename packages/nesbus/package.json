@@ -20,7 +20,10 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@azure/amqp-common": "1.0.0-preview.13",
     "@azure/arm-servicebus": "^3.2.0",
+    "@azure/core-http": "^1.0.0",    
+    "@azure/service-bus": "^1.1.6",
     "@nestjs/common": "^7.0.9",
     "@nestjs/core": "^7.0.9",
     "@nestjs/microservices": "^7.0.9",
@@ -29,22 +32,22 @@
     "jest": "^25.4.0",
     "ts-jest": "^25.4.0",
     "typescript": "~3.7.5",
-    "utility-types": "^3.10.0"
-  },
-  "peerDependencies": {
-    "@azure/arm-servicebus": "^3.2.0",
-    "@nestjs/common": "^7.0.0",
-    "@nestjs/core": "^7.0.0",
-    "@nestjs/microservices": "^7.0.5",
-    "rxjs": "^6.0.0"
-  },
-  "dependencies": {
-    "@azure/amqp-common": "1.0.0-preview.13",
-    "@azure/core-http": "^1.0.0",
-    "@azure/service-bus": "^1.1.5",
+    "utility-types": "^3.10.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^6.0.0"
   },
+  "peerDependencies": {
+    "@azure/amqp-common": "1.0.0-preview.13",
+    "@azure/arm-servicebus": "^3.2.0",
+    "@azure/core-http": "^1.0.0",    
+    "@azure/service-bus": "^1.1.6",
+    "@nestjs/common": "^7.0.0",
+    "@nestjs/core": "^7.0.0",
+    "@nestjs/microservices": "^7.0.5",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^6.0.0"
+  },
+  "dependencies": {},
   "publishConfig": {
     "access": "public"
   },
