@@ -31,7 +31,16 @@ import { Types } from 'mongoose';
 export function addConnection(connectionId: string, connectionFactory: () => (mongoose_2.Connection | Promise<mongoose_2.Connection>), connectOptions?: GtConnectOptions): Promise<unknown>;
 
 // @public (undocumented)
+export type ClassDecoratorOf<TInstance, TStatic = any> = (target: Type<TInstance, TStatic>) => any;
+
+// @public (undocumented)
 export type ColumnRequired = boolean | string | (() => boolean) | [() => boolean, string];
+
+// @public (undocumented)
+export interface Ctor<T> extends Function {
+    // (undocumented)
+    new (...args: any[]): T;
+}
 
 // @public (undocumented)
 export class DocumentArray<T extends MongooseDocument> extends Types.DocumentArray<T> {
@@ -40,8 +49,6 @@ export class DocumentArray<T extends MongooseDocument> extends Types.DocumentArr
 // @public
 export function findModels(): Array<Model | Resource>;
 
-// Warning: (ae-forgotten-export) The symbol "Ctor" needs to be exported by the entry point index.d.ts
-//
 // @public
 export function getDiscriminatorKeyFor(modelClass: Ctor<any>): string | undefined;
 
@@ -62,8 +69,6 @@ export interface GtBeforeCompileModelHandler {
     target: Ctor<any>;
 }
 
-// Warning: (ae-forgotten-export) The symbol "PropertyDecoratorOf" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function GtColumn<T = any>(metadata?: GtColumnMetadataArgs<T>): PropertyDecoratorOf<any>;
 
@@ -76,7 +81,6 @@ export interface GtColumnMetadataArgs<T> {
     required?: ColumnRequired;
     select?: boolean;
     skipVersioning?: boolean;
-    // Warning: (ae-forgotten-export) The symbol "Type" needs to be exported by the entry point index.d.ts
     type?: Schema | typeof SchemaType | (() => Type<any, any>);
     validate?: Validator;
 }
@@ -87,8 +91,6 @@ export interface GtCompoundIndexMetadataArgs {
     indices: {
         [indexName: string]: GtIndexSortOrder;
     };
-    // Warning: (ae-forgotten-export) The symbol "GtIndexOptions" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     options?: GtIndexOptions;
 }
@@ -99,16 +101,12 @@ export interface GtConnectOptions {
     compileAt?: 'immediate' | 'connected';
 }
 
-// Warning: (ae-forgotten-export) The symbol "MethodDecoratorOf" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function GtDeleteOneHook(stage: 'pre' | 'post'): MethodDecoratorOf<never, any>;
 
 // @public (undocumented)
 export function GtDiscriminatorKey<T = string>(): PropertyDecoratorOf<T>;
 
-// Warning: (ae-forgotten-export) The symbol "ClassDecoratorOf" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function GtDiscriminatorType(): ClassDecoratorOf<any, any>;
 
@@ -141,10 +139,18 @@ export function GtIndex(metadata?: GtSingleIndexMetadataArgs): PropertyDecorator
 export function GtIndex(metadata: GtCompoundIndexMetadataArgs): ClassDecorator;
 
 // @public (undocumented)
+export interface GtIndexOptions {
+    sparse?: boolean | any;
+    text?: boolean | any;
+    unique?: boolean | any;
+}
+
+// @public (undocumented)
+export type GtIndexSortOrder = 'asc' | 'desc';
+
+// @public (undocumented)
 export function GtInitHook(stage: 'pre' | 'post'): MethodDecoratorOf<never, void>;
 
-// Warning: (ae-forgotten-export) The symbol "StaticMethodDecoratorOf" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function GtInsertManyHook(stage: 'post'): StaticMethodDecoratorOf<[any[]], any>;
 
@@ -212,10 +218,14 @@ export function GtResource<T1, C1, T2, C2, T3, C3>(m1: C1 & Ctor<T1>, m2: C2 & C
 // @public (undocumented)
 export function GtSaveHook(stage: 'pre' | 'post'): MethodDecoratorOf<never, any>;
 
-// Warning: (ae-forgotten-export) The symbol "GtSchemaTypeMetadataArgs" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function GtSchemaType(metadata: GtSchemaTypeMetadataArgs): ClassDecorator;
+
+// Warning: (ae-forgotten-export) The symbol "GtSchemaTypeSingleMetadataArgs" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "GtSchemaTypeContainerMetadataArgs" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export type GtSchemaTypeMetadataArgs = GtSchemaTypeSingleMetadataArgs | GtSchemaTypeContainerMetadataArgs;
 
 // @public (undocumented)
 export interface GtSingleIndexMetadataArgs {
@@ -259,6 +269,9 @@ export function GtVersionKey<T = number>(): PropertyDecoratorOf<T>;
 
 // @public (undocumented)
 export function mapSchemaType(runtimeType: any, metadata: GtSchemaTypeMetadataArgs): void;
+
+// @public (undocumented)
+export type MethodDecoratorOf<TArgs extends [any] | [any, any] | [any, any, any] | [any, any, any, any] | [any, any, any, any, any] | [any, any, any, any, any, any] | [any, any, any, any, any, any, any] = never, TReturn = void> = <Z extends Partial<Record<K, (...args: TArgs) => TReturn>>, K extends string>(target: Z, key: K, descriptor: TypedPropertyDescriptor<(...args: TArgs) => TReturn>) => TypedPropertyDescriptor<(...args: TArgs) => TReturn> | void;
 
 // @public (undocumented)
 export interface Model<QueryHelpers = {}> extends Model_2<Document_2, QueryHelpers> {
@@ -396,6 +409,9 @@ export class ObjectId extends String {
 }
 
 // @public (undocumented)
+export type PropertyDecoratorOf<T> = <Z extends Partial<Record<K, T>>, K extends string>(target: Z, key: K) => void;
+
+// @public (undocumented)
 export interface Resource<T = unknown> {
     // (undocumented)
     [GT_SUB_DOCUMENT]: boolean;
@@ -407,6 +423,9 @@ export interface Resource<T = unknown> {
     schema: Schema;
 }
 
+// @public (undocumented)
+export type StaticMethodDecoratorOf<TArgs extends [any] | [any, any] | [any, any, any] | [any, any, any, any] | [any, any, any, any, any] | [any, any, any, any, any, any] | [any, any, any, any, any, any, any] = never, TReturn = void> = <Z extends Function & Partial<Record<K, (...args: TArgs) => TReturn>>, K extends string>(target: Z, key: K, descriptor: TypedPropertyDescriptor<(...args: TArgs) => TReturn>) => TypedPropertyDescriptor<(...args: TArgs) => TReturn> | void;
+
 // @public
 export type StripDoc<T extends Document_2, TExcept extends keyof Document_2 = never> = Subtract<T, Omit<Document_2, TExcept>>;
 
@@ -416,6 +435,9 @@ export type StripDoColumns<T extends Document_2, TExcept extends keyof Document_
 // @public (undocumented)
 export interface SubDocument {
 }
+
+// @public (undocumented)
+export type Type<TInstance, TStatic> = Ctor<TInstance> & TStatic;
 
 // @public
 export type Validator = RegExp | ValidatorFn | ValidatorOpts | ValidatorOpts[];
@@ -441,10 +463,6 @@ export interface ValidatorOpts<T = any> {
     validator: ValidatorFn<T>;
 }
 
-
-// Warnings were encountered during analysis:
-//
-// src/interfaces/index-metadata.ts:21:5 - (ae-forgotten-export) The symbol "GtIndexSortOrder" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
