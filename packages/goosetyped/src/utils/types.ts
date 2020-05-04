@@ -1,12 +1,13 @@
 // tslint:disable: ban-types
 import { Document } from 'mongoose';
 import { Subtract, SetDifference, NonFunctionKeys } from 'utility-types';
-import { Type } from '../interfaces';
 
 export interface Ctor<T> extends Function {
   // tslint:disable-next-line: callable-types
   new (...args: any[]): T;
 }
+
+export type Type<TInstance, TStatic> = Ctor<TInstance> & TStatic;
 
 export type ClassDecoratorOf<TInstance, TStatic = any> = (target: Type<TInstance, TStatic>) => any;
 

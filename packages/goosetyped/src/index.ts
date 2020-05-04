@@ -22,11 +22,12 @@ export {
 } from './decorators';
 
 export {
+  GtIndexOptions, GtIndexSortOrder,
   GtConnectOptions, GtBeforeCompileModelHandler,
   GtColumnMetadataArgs,
   GtSingleIndexMetadataArgs, GtCompoundIndexMetadataArgs,
   GtPluginMetadataArgs,
-  GtSubDocumentMetadataArgs, GtDocumentMetadataArgs,
+  GtSchemaTypeMetadataArgs, GtSubDocumentMetadataArgs, GtDocumentMetadataArgs,
 } from './interfaces';
 export * from './interfaces/mongoose';
 
@@ -52,4 +53,13 @@ export {
 
 export { addConnection } from './connection';
 
-export { StripDoc, StripDoColumns } from './utils';
+export {
+  Type,
+  Ctor,
+  StripDoc,
+  StripDoColumns,
+  ClassDecoratorOf,
+  StaticMethodDecoratorOf,
+  MethodDecoratorOf,
+  PropertyDecoratorOf,
+} from './utils';

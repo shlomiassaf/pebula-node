@@ -1,5 +1,4 @@
 export * from './connect-options';
-export * from './type';
 export * from './mongoose';
 export * from './schema-metadata';
 export * from './column-metadata';

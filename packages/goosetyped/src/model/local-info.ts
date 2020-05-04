@@ -77,11 +77,12 @@ export class GtLocalInfo {
   }
 
   private processEmbeddedColumn(modelPrototype: any, key: string, localInfo: GtLocalInfo, paths: string[]) {
-    const { get, set } = Object.getOwnPropertyDescriptor(modelPrototype, key);
-    if (set[GT_SCHEMA_PATH_SETTER]) {
+    const descriptor = Object.getOwnPropertyDescriptor(modelPrototype, key);
+    if (!descriptor || descriptor.set[GT_SCHEMA_PATH_SETTER]) {
       return;
     }
 
+    const { get, set } = descriptor;
     if (!this.props.get(key).columnMeta.isContainer) {
       function newSet(source) { // tslint:disable-line: only-arrow-functions object-literal-shorthand
         if (!source) { // we don't mind "falsy" values because we're always in the context of embedded columns.

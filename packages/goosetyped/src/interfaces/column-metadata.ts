@@ -1,5 +1,5 @@
 import { Schema, SchemaType } from 'mongoose';
-import { Type } from './type';
+import { Type } from '../utils';
 import { ColumnRequired, Validator } from './mongoose';
 
 export interface GtColumnMetadataArgs<T> {
