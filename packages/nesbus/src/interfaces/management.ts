@@ -9,15 +9,20 @@ export interface SbManagementClientAdapterFactory {
 export interface SbManagementClientAdapter {
   getQueue(queueName: string): Promise<SbQueue>;
   upsertQueue(queueName: string, queue: SbQueue, isNew: boolean): Promise<SbQueue>;
+  deleteQueue(queueName: string): Promise<void>;
 
   getTopic(topicName: string): Promise<SbTopic>;
   upsertTopic(topicName: string, topic: SbTopic, isNew: boolean): Promise<SbTopic>;
+  deleteTopic(topicName: string): Promise<void>;
 
   getSubscription(topicName: string, subscriptionName: string): Promise<SbSubscription>;
   upsertSubscription(topicName: string, subscriptionName: string, subscription: SbSubscription, isNew: boolean): Promise<SbSubscription>;
+  deleteSubscription(topicName: string, subscriptionName: string): Promise<void>;
 
   getRule(topicName: string, subscriptionName: string, ruleName: string): Promise<SbRule>;
   upsertRule(topicName: string, subscriptionName: string, ruleName: string, rule: SbRule, isNew: boolean): Promise<SbRule>;
+  deleteRule(topicName: string, subscriptionName: string, ruleName: string): Promise<void>;
+
 }
 
 export interface SbManagementDefaultsAdapter {

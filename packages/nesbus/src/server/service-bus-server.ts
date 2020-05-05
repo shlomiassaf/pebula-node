@@ -11,15 +11,13 @@ import { sbResourceManager, SbChannelManager } from '../resource-manager';
 import { SbContext } from '../sb-context';
 import { NoopLogger } from '../noop-logger';
 
-const noopLogger = new NoopLogger();
-
 export class SbServer extends Server implements CustomTransportStrategy, SbSubscriberRoutingContextFactory {
   public client: ServiceBusClient;
   public configurator?: SbConfigurator;
 
   get initialized(): boolean { return !!this.isInit; }
 
-  protected sbLogger: LoggerService = noopLogger;
+  protected sbLogger: LoggerService = NoopLogger.shared;
   protected router: SbSubscriberRouter;
   private routeContext: SbSubscriberRoutingContext;
   private readonly isInit: boolean;

@@ -53,4 +53,6 @@ export {
 export { createSbServer } from './create-sb-server';
 export { ServiceBusModule } from './service-bus.module';
 
+export { Ctx, Payload } from '@nestjs/microservices';
+
 register();

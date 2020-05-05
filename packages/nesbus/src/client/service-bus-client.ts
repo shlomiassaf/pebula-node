@@ -6,8 +6,6 @@ import { SbChannelManager } from '../resource-manager/';
 import { SbEmitterMetadata } from '../metadata';
 import { NoopLogger } from '../noop-logger';
 
-const noopLogger = new NoopLogger();
-
 export class SbClient {
 
   public readonly id?: string;
@@ -18,7 +16,7 @@ export class SbClient {
               public readonly client: ServiceBusClient,
               public readonly configurator?: SbConfigurator) {
     this.id = options.name;
-    this.sbLogger = options.logger || noopLogger;
+    this.sbLogger = options.logger || NoopLogger.shared;
   }
 
   async createEmitter(metadata: SbEmitterMetadata) {

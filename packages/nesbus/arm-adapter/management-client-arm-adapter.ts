@@ -39,6 +39,9 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     const result = await this.managementClient.queues.createOrUpdate(this.resourceGroupName, this.namespace, queueName, queue);
     return convertToQueue(result);
   }
+  async deleteQueue(queueName: string) {
+    await this.managementClient.queues.deleteMethod(this.resourceGroupName, this.namespace, queueName);
+  }
 
   async getTopic(topicName: string): Promise<SbTopic> {
     const result = await this.managementClient.topics.get(this.resourceGroupName, this.namespace, topicName);
@@ -47,6 +50,9 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
   async upsertTopic(topicName: string, topic: SbTopic, isNew: boolean): Promise<SbTopic> {
     const result = await this.managementClient.topics.createOrUpdate(this.resourceGroupName, this.namespace, topicName, topic);
     return convertToTopic(result);
+  }
+  async deleteTopic(topicName: string) {
+    await this.managementClient.topics.deleteMethod(this.resourceGroupName, this.namespace, topicName);
   }
 
   async getSubscription(topicName: string, subscriptionName: string): Promise<SbSubscription> {
@@ -57,6 +63,9 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     const result = await this.managementClient.subscriptions
       .createOrUpdate(this.resourceGroupName, this.namespace, topicName, subscriptionName, subscription);
     return convertToSubscription(result);
+  }
+  async deleteSubscription(topicName: string, subscriptionName: string) {
+    await this.managementClient.subscriptions.deleteMethod(this.resourceGroupName, this.namespace, topicName, subscriptionName);
   }
 
   async getRule(topicName: string, subscriptionName: string, ruleName: string): Promise<SbRule> {
@@ -78,4 +87,8 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     );
     return convertToRule(topicName, subscriptionName, ruleName, armRule);
   }
+  async deleteRule(topicName: string, subscriptionName: string, ruleName: string) {
+    await this.managementClient.rules.deleteMethod(this.resourceGroupName, this.namespace, topicName, subscriptionName, ruleName);
+  }
+
 }

@@ -1,7 +1,10 @@
   // tslint:disable: no-empty
-import { Logger } from '@nestjs/common';
+import { LoggerService } from '@nestjs/common';
 
-export class NoopLogger extends Logger {
+export class NoopLogger implements LoggerService {
+
+  static readonly shared = new NoopLogger();
+
   log(message: any, context?: string): any { }
   error(message: any, trace?: string, context?: string): any { }
   warn(message: any, context?: string): any { }

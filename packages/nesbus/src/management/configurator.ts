@@ -17,8 +17,6 @@ import { NoopLogger } from '../noop-logger';
 import { SbQueue, SbTopic, SbSubscription, SbRule } from '../models';
 import { normalizeDefaults, resolveRules } from './defaults';
 
-const noopLogger = new NoopLogger();
-
 function uniqueKey(...keys: string[]): string {
   return keys.join(':');
 }
@@ -32,7 +30,7 @@ async function safeAsync<T>(task: Promise<T>, fallback = null): Promise<T | null
 }
 
 export class SbConfigurator {
-  private sbLogger: LoggerService = noopLogger;
+  private sbLogger: LoggerService = NoopLogger.shared;
 
   private readonly cache = {
     queue: new Map<string, SbQueue>(),
@@ -80,6 +78,10 @@ export class SbConfigurator {
     this.sbLogger.log(`Queue ${queueName} verified.`);
     return queue;
   }
+  async deleteQueue(queueName: string) {
+    await this.managementClient.deleteQueue(queueName);
+    this.sbLogger.log(`Queue ${queueName} deleted.`);
+  }
 
   async verifyTopic(topicName: string, provision: SbEntityProvisionOption<SbTopicEntityProvision>): Promise<SbTopic> {
     // check if already verified for this connector...
@@ -104,6 +106,10 @@ export class SbConfigurator {
 
     this.sbLogger.log(`Topic ${topicName} verified.`);
     return topic;
+  }
+  async deleteTopic(topicName: string) {
+    await this.managementClient.deleteTopic(topicName);
+    this.sbLogger.log(`Topic ${topicName} deleted.`);
   }
 
   async verifySubscription(topicName: string,
@@ -148,6 +154,10 @@ export class SbConfigurator {
     this.sbLogger.log(`Subscription ${topicName}-${subscriptionName} verified.`);
     return subscription;
   }
+  async deleteSubscription(topicName: string, subscriptionName: string) {
+    await this.managementClient.deleteSubscription(topicName, subscriptionName);
+    this.sbLogger.log(`Subscription ${topicName}-${subscriptionName} de;ete.`);
+  }
 
   async verifyRule(topicName: string, subscriptionName: string, provision: SbRuleEntityProvision): Promise<SbRule> {
     const { ruleName } = provision;
@@ -171,6 +181,10 @@ export class SbConfigurator {
     }
 
     return rule;
+  }
+  async deleteRule(topicName: string, subscriptionName: string, ruleName: string) {
+    await this.managementClient.deleteRule(topicName, subscriptionName, ruleName);
+    this.sbLogger.log(`Rule ${topicName}-${subscriptionName}-${ruleName} deleted.`);
   }
 
   /**

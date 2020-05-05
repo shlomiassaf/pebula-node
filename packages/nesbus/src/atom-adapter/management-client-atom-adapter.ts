@@ -33,6 +33,9 @@ export class SbManagementClientAtomAdapter implements SbManagementClientAdapter 
       : this.managementClient.updateQueue(queueName, queue)
     ;
   }
+  async deleteQueue(queueName: string) {
+    await this.managementClient.deleteQueue(queueName);
+  }
 
   async getTopic(topicName: string) {
     return this.managementClient.getTopicDetails(topicName);
@@ -42,6 +45,9 @@ export class SbManagementClientAtomAdapter implements SbManagementClientAdapter 
       ? this.managementClient.createTopic(topicName, topic)
       : this.managementClient.updateTopic(topicName, topic)
     ;
+  }
+  async deleteTopic(topicName: string) {
+    await this.managementClient.deleteTopic(topicName);
   }
 
   async getSubscription(topicName: string, subscriptionName: string) {
@@ -53,6 +59,9 @@ export class SbManagementClientAtomAdapter implements SbManagementClientAdapter 
       : this.managementClient.updateSubscription(topicName, subscriptionName, subscription)
     ;
   }
+  async deleteSubscription(topicName: string, subscriptionName: string) {
+    await this.managementClient.deleteSubscription(topicName, subscriptionName);
+  }
 
   async getRule(topicName: string, subscriptionName: string, ruleName: string) {
     return this.managementClient.getRuleDetails(topicName, subscriptionName, ruleName);
@@ -62,5 +71,8 @@ export class SbManagementClientAtomAdapter implements SbManagementClientAdapter 
       ? this.managementClient.createRule(topicName, subscriptionName, ruleName, rule)
       : this.managementClient.updateRule(topicName, subscriptionName, ruleName, rule)
     ;
+  }
+  async deleteRule(topicName: string, subscriptionName: string, ruleName: string) {
+    await this.managementClient.deleteRule(topicName, subscriptionName, ruleName);
   }
 }
