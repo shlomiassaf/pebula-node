@@ -1,13 +1,24 @@
-import { Logger } from '@nestjs/common';
+import { ModuleMetadata } from '@nestjs/common/interfaces';
 import { ApplicationTokenCredentials } from '@azure/ms-rest-nodeauth';
 
 import { ServiceBusModule, SbServerOptions } from '@pebula/nesbus';
 import { registerArmAdapter } from '@pebula/nesbus/arm-adapter';
-import { SB_BACKOFF_RETRY_DEFAULTS, SbBackoffRetryOptions } from '@pebula/nesbus/tasks';
+import { NoopLogger } from '../../../src/noop-logger';
 
-import { ConfigService, ServiceBusEntityConfigurator } from '../services';
+import { ConfigService } from '../services';
 
-function createClient(client: ReturnType<ConfigService['sbConnection']>['client']): SbServerOptions['client'] {
+export function createLogger(name: string) {
+  // return new Logger(name);
+  return {
+    log: msg => console.log(`[${name}]: ${msg}`),
+    error: msg => console.error(`[${name}]: ${msg}`),
+    warn: msg => console.warn(`[${name}]: ${msg}`),
+    debug: msg => console.log(`[${name}]: ${msg}`),
+    verbose: msg => console.log(`[${name}]: ${msg}`),
+  };
+}
+
+export function createClient(client: ReturnType<ConfigService['sbConnection']>['client']): SbServerOptions['client'] {
   if (client.type === 'connectionString') {
     return {
       credentials: {
@@ -28,7 +39,7 @@ function createClient(client: ReturnType<ConfigService['sbConnection']>['client'
   }
 }
 
-function createManagement(management: ReturnType<ConfigService['sbConnection']>['management'], config: ConfigService): SbServerOptions['management'] {
+export function createManagement(management: ReturnType<ConfigService['sbConnection']>['management'], config: ConfigService): SbServerOptions['management'] {
   const defaults = config.sbDefaultsAdapter();
   if (management.type === 'connectionString') {
     return {
@@ -56,17 +67,17 @@ function createManagement(management: ReturnType<ConfigService['sbConnection']>[
   }
 }
 
-function createServerOptions(config: ConfigService) {
+export function createServerOptions(config: ConfigService) {
   const { client, management } = config.sbConnection();
   const sbServerOptions: SbServerOptions = {
     client: createClient(client),
     management: createManagement(management, config),
-    logger: new Logger('SbServer: default'),
+    logger: NoopLogger.shared, // createLogger('SbServer: default'),
   };
   return [ sbServerOptions ];
 }
 
-export function createServiceBusModule() {
+export function createServiceBusModule(moduleMetadata: ModuleMetadata = {}) {
   const serviceBusModule = ServiceBusModule.register({
     servers: {
       useFactory: createServerOptions,
@@ -74,21 +85,13 @@ export function createServiceBusModule() {
     },
     clients: [
       {
-        logger: new Logger('SbClient: default'),
+        logger: NoopLogger.shared, // createLogger('SbClient: default'),
       },
     ],
-    metaFactoryProvider: ServiceBusEntityConfigurator,
   });
-  const providers = [
-    {
-      provide: SB_BACKOFF_RETRY_DEFAULTS,
-      useValue: {
-        retryCount: 3,
-      } as SbBackoffRetryOptions,
-    },
-  ];
+
   return {
-    imports: [ serviceBusModule ],
-    providers,
+    ...moduleMetadata,
+    imports: [ serviceBusModule, ...(moduleMetadata.imports || []) ],
   };
 }
