@@ -25,7 +25,7 @@ export type SbConnection = { type: 'connectionString'; sasConnectionString: stri
 @Injectable()
 export class ConfigService {
   sbConnection(): { client: SbConnection; management: SbConnection; } {
-    const sasConnectionString = process.env.SERVICEBUS_CONNECTION_STRING || 'Endpoint=sb://shlomi-bus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=0AzjDEdltVLkN7OAgHAz2G6nIrKlGOBOhpx3js29NbY=';
+    const sasConnectionString = process.env.SERVICEBUS_CONNECTION_STRING;
     return {
       client: {
         type: 'connectionString',
