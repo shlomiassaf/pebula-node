@@ -58,10 +58,11 @@ export function calculateBackOffTime(config: SbBackoffRetryOptions, currentItera
   }
   const max = 100 + config.distortFactor;
   const min = 100 - config.distortFactor;
-  const randomDistortion = Math.floor(Math.random() * (max - min + 1) + min);
+  const randomDistortion = Math.floor(Math.random() * (max - min + 1) + min) / 100;
 
+  currentIteration += 1;
   if (config.delayType === 'exponential') {
-    return (((Math.pow(config.factor, currentIteration) - 1) * config.delay) / 2) * randomDistortion;
+    return (((Math.pow(Math.max(config.factor, 2), currentIteration) - 1) * config.delay) / 2) * randomDistortion;
   } else {
     return config.delay * config.factor * currentIteration * randomDistortion;
   }

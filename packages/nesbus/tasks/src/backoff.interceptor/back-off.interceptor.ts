@@ -1,5 +1,6 @@
 import { from, of } from 'rxjs';
 import { mapTo, catchError } from 'rxjs/operators';
+import { ServiceBusMessage } from '@azure/service-bus';
 import { Logger, Injectable, CallHandler, Inject, Optional } from '@nestjs/common';
 import { SbInterceptor, SbContext } from '@pebula/nesbus';
 
@@ -9,6 +10,10 @@ import { SbBackoffRetryOptions, DEFAULT_BACKOFF_CONFIG, extractRetryCount, creat
 
 @Injectable()
 export class SbBackoffRetry implements SbInterceptor {
+
+  static findRetryCount(msg: ServiceBusMessage, retryCountKey?: string): number | false {
+    return extractRetryCount(retryCountKey || DEFAULT_BACKOFF_CONFIG.retryCountKey, msg);
+  }
 
   private config: SbBackoffRetryOptions;
   private logger = new Logger('RetryWithBackOff');
