@@ -5,6 +5,8 @@
     "outDir": "cjs",
     "declarationMap": true,
     "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
   },
   "include": [ "src", "index.ts", "tasks", "arm-adapter" ],
   "exclude": [ "tests", "**/*spec.ts"]

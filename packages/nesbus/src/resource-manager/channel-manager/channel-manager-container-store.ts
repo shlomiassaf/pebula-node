@@ -1,5 +1,5 @@
 import { ServiceBusClient } from '@azure/service-bus';
-import { QueueClientContainer, TopicClientContainer, TopicSubscriptionClientContainer } from './client-container';
+import { QueueClientContainer, TopicClientContainer } from './client-container';
 
 export class SbChannelManagerContainerStore {
   private queueClients = new Map<string | symbol, QueueClientContainer>();
@@ -8,6 +8,15 @@ export class SbChannelManagerContainerStore {
   private rxClient: ServiceBusClient;
   private txClient: ServiceBusClient;
 
+  async destroy() {
+    const clients = [...this.queueClients.values(), ...this.topicClients.values()];
+    this.queueClients.clear();
+    this.topicClients.clear();
+    for (const client of clients) {
+      await client.destroy();
+    }
+  }
+
   updateClients(rx: ServiceBusClient, tx: ServiceBusClient): void {
     this.rxClient = rx;
     this.txClient = tx;
@@ -15,40 +24,21 @@ export class SbChannelManagerContainerStore {
     // based on previous reference match (throw if no match to previous)
   }
 
-  findSubscription(topicContainer: TopicClientContainer,
-                   subscriptionName: string,
-                   createIfNotExists: false | 'rx' | 'tx' = false): TopicSubscriptionClientContainer | undefined {
-    let subscriptionClientContainer = topicContainer.subscriptions.get(subscriptionName);
-
-    if (!subscriptionClientContainer && createIfNotExists !== false) {
-      const client = this.withClient(createIfNotExists).createSubscriptionClient(topicContainer.name, subscriptionName);
-      subscriptionClientContainer = new TopicSubscriptionClientContainer(topicContainer, subscriptionName, client);
-      topicContainer.subscriptions.set(subscriptionName, subscriptionClientContainer);
-    }
-    return subscriptionClientContainer;
-  }
-
-  findQueue(queueName: string, createIfNotExists: false | 'rx' | 'tx' = false): QueueClientContainer | undefined {
+  findQueue(queueName: string, createIfNotExists = false): QueueClientContainer | undefined {
     let queueContainer = this.queueClients.get(queueName);
-    if (!queueContainer && createIfNotExists !== false) {
-      const client = this.withClient(createIfNotExists).createQueueClient(queueName);
-      queueContainer = new QueueClientContainer(queueName, client);
+    if (!queueContainer && createIfNotExists) {
+      queueContainer = new QueueClientContainer(queueName, this.rxClient, this.txClient);
       this.queueClients.set(queueName, queueContainer);
     }
     return queueContainer;
   }
 
-  findTopic(topicName: string, createIfNotExists: false | 'rx' | 'tx' = false): TopicClientContainer | undefined {
+  findTopic(topicName: string, createIfNotExists = false): TopicClientContainer | undefined {
     let topicContainer = this.topicClients.get(topicName);
-    if (!topicContainer && createIfNotExists !== false) {
-      const client = this.withClient(createIfNotExists).createTopicClient(topicName);
-      topicContainer = new TopicClientContainer(topicName, client);
+    if (!topicContainer && createIfNotExists) {
+      topicContainer = new TopicClientContainer(topicName, this.rxClient, this.txClient);
       this.topicClients.set(topicName, topicContainer);
     }
     return topicContainer;
-  }
-
-  private withClient(client: 'rx' | 'tx'): ServiceBusClient {
-    return client === 'rx' ? this.rxClient : this.txClient;
   }
 }

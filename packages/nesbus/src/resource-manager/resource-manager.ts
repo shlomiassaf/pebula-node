@@ -72,6 +72,20 @@ export class SbResourceManager {
     return resource && resource.channels;
   }
 
+  async destroy(name?: string) {
+    const resource = this.getResource(name);
+    if (resource) {
+
+      if (!name) {
+        this.defaultResourceGroup = undefined;
+      } else {
+        this.resourceGroups.delete(name);
+      }
+
+      await resource.destroy();
+    }
+  }
+
   tryResolveEmitter(obj: SbMessageEmitter): SbEmitterImp | undefined {
     if (isSbEmitterRef(obj)) {
       const channelMgr = this.getChannelManager(obj.clientId);

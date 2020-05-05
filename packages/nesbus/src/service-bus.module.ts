@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Optional, Inject, DynamicModule, Provider, Type } from '@nestjs/common';
+import { Module, OnModuleInit, Optional, Inject, DynamicModule, Provider, Type, OnModuleDestroy } from '@nestjs/common';
 import { SB_CLIENT_OPTIONS, SB_SERVER_OPTIONS, SB_META_HELPER_FACTORY_TOKEN } from './constants';
 import { SbServerOptions, SbModuleRegisterOptions, SbClientOptions } from './interfaces';
 import { SbDiscoveryFactoryService, SbDiscoveryService } from './discovery';
@@ -18,7 +18,7 @@ function normalizeProvider(provider: Omit<Exclude<Provider, Type<any>>, 'provide
     SbDiscoveryFactoryService,
   ],
 })
-export class ServiceBusModule implements OnModuleInit {
+export class ServiceBusModule implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Register a service bus server/s that will be used as the underlying resources to generate `Queue` & `Subscription` listeners.
@@ -86,5 +86,9 @@ export class ServiceBusModule implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.discovery.discover();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.discovery.destroy();
   }
 }

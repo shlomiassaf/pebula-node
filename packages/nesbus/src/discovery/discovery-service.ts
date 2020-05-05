@@ -48,6 +48,11 @@ export class SbDiscoveryService {
     await this.server.commitRoutes();
   }
 
+  async destroy() {
+    await this.client.destroy();
+    await this.server.destroy();
+  }
+
   private async build() {
     const promises = Array.from(this.modulesContainer.values()).map( module => this.parseModule(module) );
 

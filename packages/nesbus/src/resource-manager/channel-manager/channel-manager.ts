@@ -10,6 +10,16 @@ export class SbChannelManager {
 
   constructor(public readonly resourceGroup: SbResourceGroup) { }
 
+  async destroy() {
+    await this.containers.destroy();
+    if (this.rxClient) {
+      await this.rxClient.close();
+    }
+    if (this.txClient && this.txClient !== this.rxClient) {
+      await this.txClient.close();
+    }
+  }
+
   resourceUpdate(): void {
     const { server, client } = this.resourceGroup;
 
@@ -28,14 +38,7 @@ export class SbChannelManager {
   getCreateQueryReceiver(name: string, receiveMode: ReceiveMode): Receiver;
   getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions: SessionReceiverOptions): SessionReceiver;
   getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
-    const queueContainer = this.containers.findQueue(name, 'rx');
-    if (!queueContainer.receiver) {
-      queueContainer.receiver = sessionReceiverOptions
-        ? queueContainer.client.createReceiver(receiveMode, sessionReceiverOptions)
-        : queueContainer.client.createReceiver(receiveMode)
-      ;
-    }
-    return queueContainer.receiver;
+    return this.containers.findQueue(name, true).getCreateReceiver(receiveMode, sessionReceiverOptions);
   }
 
   getQuerySender(name: string): Sender | undefined {
@@ -46,11 +49,7 @@ export class SbChannelManager {
   }
 
   getCreateQuerySender(name: string): Sender {
-    const queueContainer = this.containers.findQueue(name, 'tx');
-    if (!queueContainer.sender) {
-      queueContainer.sender = queueContainer.client.createSender();
-    }
-    return queueContainer.sender;
+    return this.containers.findQueue(name, true).getCreateSender();
   }
 
   getTopicSender(name: string): Sender | undefined {
@@ -61,18 +60,13 @@ export class SbChannelManager {
   }
 
   getCreateTopic(topicName: string): Sender {
-    const topicContainer = this.containers.findTopic(topicName, 'tx');
-    if (!topicContainer.sender) {
-      topicContainer.sender = topicContainer.client.createSender();
-    }
-    return topicContainer.sender;
+    return this.containers.findTopic(topicName, true).getCreateSender();
   }
 
   getSubscription(topicName: string, subscriptionName: string): Receiver | SessionReceiver | undefined {
     const topicContainer = this.containers.findTopic(topicName);
-    const subscriptionContainer = topicContainer && this.containers.findSubscription(topicContainer, subscriptionName);
-    if (subscriptionContainer) {
-      return subscriptionContainer.receiver;
+    if (topicContainer) {
+      return topicContainer.getReceiver(subscriptionName);
     }
   }
 
@@ -84,15 +78,8 @@ export class SbChannelManager {
   getCreateSubscription(topicName: string,
                         subscriptionName: string, receiveMode: ReceiveMode,
                         sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
-    const topicContainer = this.containers.findTopic(topicName, 'rx');
-    const subscriptionContainer = this.containers.findSubscription(topicContainer, subscriptionName, 'rx');
-    if (!subscriptionContainer.receiver) {
-      subscriptionContainer.receiver = sessionReceiverOptions
-        ? subscriptionContainer.client.createReceiver(receiveMode, sessionReceiverOptions)
-        : subscriptionContainer.client.createReceiver(receiveMode)
-      ;
-    }
-    return subscriptionContainer.receiver;
+    return this.containers.findTopic(topicName, true)
+      .getCreateReceiver(subscriptionName, receiveMode, sessionReceiverOptions);
   }
 
 }

@@ -14,15 +14,4 @@ module.exports = {
   modulePathIgnorePatterns: ['<rootDir>/cjs/.*', '<rootDir>/node_modules/.*'],
   // coverageDirectory: './.coverage',
   // collectCoverage: true,
-  preset: '@shelf/jest-mongodb',
-  mongodbMemoryServerOptions: {
-    instance: {
-      dbName: 'jest'
-    },
-    binary: {
-      version: '4.0.2', // Version of MongoDB
-      skipMD5: true
-    },
-    autoStart: false
-  }
 }

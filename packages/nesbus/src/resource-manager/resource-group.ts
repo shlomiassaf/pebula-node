@@ -15,8 +15,22 @@ export class SbResourceGroup {
 
   private _client?: SbClient;
   private _server?: SbServer;
+  private _destroyed: boolean;
 
   constructor(public readonly id?: string) { }
+
+  async destroy() {
+    if (!this._destroyed) {
+      this._destroyed = true;
+      await this.channels.destroy();
+      if (this.client) {
+        await this.client.destroy();
+      }
+      if (this.server) {
+        await this.server.destroy();
+      }
+    }
+  }
 
   private sync(client?: SbClient, server?: SbServer): void {
     if (this._client === client && this._server === server) {

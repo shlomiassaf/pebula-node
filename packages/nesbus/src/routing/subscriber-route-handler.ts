@@ -8,6 +8,7 @@ import { SbSubscriberMetadata } from '../metadata';
 import { SbContext } from '../sb-context';
 import { SbConfigurator } from '../management';
 import { createConsumer } from '../interceptors';
+import { registerMessageHandler } from './register-message-handler';
 
 export abstract class SbSubscriberRouteHandler<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> {
 
@@ -28,7 +29,7 @@ export abstract class SbSubscriberRouteHandler<T extends keyof SbSubscriberTypeM
       : this.createPipeHandler(routeInstructions.subscriber, handler as OperatorFunction<SbContext, SbContext>, routeInstructions)
     ;
 
-    this.createReceiver(context, options).registerMessageHandler(messageHandler, context.onError, options.handlerOptions);
+    await registerMessageHandler(this.createReceiver(context, options), messageHandler, context.onError, options.handlerOptions)
   }
 
   protected abstract async verify(options: SbSubscriberTypeMap[T], configurator: SbConfigurator): Promise<any>;

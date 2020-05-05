@@ -105,6 +105,8 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
     for (const s of subscription) {
       promises.push(executeRoute(s));
     }
+
+    await Promise.all(promises);
   }
 
   async listen(callback: () => void) {
@@ -112,7 +114,9 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
   }
 
   async close(): Promise<void> {
-    await this.client.close();
+  }
+
+  async destroy() {
   }
 
   /**

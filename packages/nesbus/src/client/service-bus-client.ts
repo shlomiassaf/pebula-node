@@ -1,5 +1,5 @@
 import { LoggerService } from '@nestjs/common';
-import { ServiceBusClient } from '@azure/service-bus';
+import { ServiceBusClient, Sender } from '@azure/service-bus';
 import { SbConfigurator } from '../management';
 import { SbClientOptions } from '../interfaces';
 import { SbChannelManager } from '../resource-manager/';
@@ -39,5 +39,8 @@ export class SbClient {
     this.sbLogger.log(`Registered emitter [${metadata.type}]: ${metadata.metaOptions.name}`);
 
     return emitter;
+  }
+
+  async destroy() {
   }
 }

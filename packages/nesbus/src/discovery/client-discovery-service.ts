@@ -16,6 +16,12 @@ export class SbClientDiscoveryService {
     }
   }
 
+  async destroy() {
+    for (const options of this.clientOptions) {
+      await sbResourceManager.destroy(options.name);
+    }
+  }
+
   async parseProvider(instanceWrapper: InstanceWrapper<any>, explorer: SbDiscoveryMetadataExplorer) {
     const promises: Array<Promise<any>> = [];
 

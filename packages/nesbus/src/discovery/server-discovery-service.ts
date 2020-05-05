@@ -46,6 +46,12 @@ export class SbServerDiscoveryService {
     }
   }
 
+  async destroy() {
+    for (const options of this.serverOptions) {
+      await sbResourceManager.destroy(options.name);
+    }
+  }
+
   private async initSubscriber(subscriber: SubscriberMetadataForTarget[0],
                                instanceWrapper: InstanceWrapper<any>): Promise<void> {
 
