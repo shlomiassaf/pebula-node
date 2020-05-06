@@ -17,7 +17,7 @@
     "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
-    "test": "jest",
+    "test:local": "jest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
