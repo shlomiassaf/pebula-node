@@ -8,6 +8,7 @@ module.exports = {
   projectName: 'nesbus',
   customFields: {
     apiDocsUrl: 'https://shlomiassaf.github.io/pebula-node/nesbus/api-docs',
+    azureDocsUrl: 'https://docs.microsoft.com/en-us/javascript/api/@azure',
   },
   themeConfig: {
     navbar: {

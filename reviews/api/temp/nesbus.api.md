@@ -6,6 +6,7 @@
 
 import { BaseRpcContext } from '@nestjs/microservices/ctx-host/base-rpc.context';
 import { CallHandler } from '@nestjs/common';
+import { Ctx } from '@nestjs/microservices';
 import { CustomTransportStrategy } from '@nestjs/microservices';
 import { DynamicModule } from '@nestjs/common';
 import { FactoryProvider } from '@nestjs/common';
@@ -16,8 +17,10 @@ import { MessageHandlerOptions } from '@azure/service-bus';
 import { MessagingError } from '@azure/service-bus';
 import { ModulesContainer } from '@nestjs/core';
 import { Observable } from 'rxjs';
+import { OnModuleDestroy } from '@nestjs/common';
 import { OnModuleInit } from '@nestjs/common';
 import { OperatorFunction } from 'rxjs';
+import { Payload } from '@nestjs/microservices';
 import { Provider } from '@nestjs/common';
 import { ProxySettings } from '@azure/core-http';
 import { ReceiveMode } from '@azure/service-bus';
@@ -39,8 +42,12 @@ import { ValueProvider } from '@nestjs/common';
 // @public
 export function createSbServer(serverId?: string): SbServer;
 
+export { Ctx }
+
 // @public (undocumented)
 export type MetaOrMetaFactory<T> = T | ((helper?: any) => (T | Promise<T>));
+
+export { Payload }
 
 // Warning: (ae-forgotten-export) The symbol "PropOrMethodDecorator" needs to be exported by the entry point index.d.ts
 //
@@ -248,9 +255,7 @@ export interface SbTopicSubscriptionEntityProvision extends SbEntityProvision<Sb
 
 // @public (undocumented)
 export interface ServiceBusAadTokenCredentials {
-    // (undocumented)
     credentials: Parameters<typeof ServiceBusClient['createFromAadTokenCredentials']>[1];
-    // (undocumented)
     host: string;
 }
 
@@ -261,9 +266,11 @@ export interface ServiceBusConnectionStringCredentials {
 }
 
 // @public (undocumented)
-export class ServiceBusModule implements OnModuleInit {
+export class ServiceBusModule implements OnModuleInit, OnModuleDestroy {
     // Warning: (ae-forgotten-export) The symbol "SbDiscoveryFactoryService" needs to be exported by the entry point index.d.ts
     constructor(discoveryFactory: SbDiscoveryFactoryService, metadataHelper?: any, clientOptions?: SbClientOptions[], serverOptions?: SbServerOptions[]);
+    // (undocumented)
+    onModuleDestroy(): Promise<void>;
     // (undocumented)
     onModuleInit(): Promise<void>;
     static register(options: SbModuleRegisterOptions): DynamicModule;
