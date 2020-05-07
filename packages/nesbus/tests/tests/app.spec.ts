@@ -128,7 +128,7 @@ describe('@pebula/nesbus', () => {
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
 
-  it('should activate backoff', async () => {
+  it.only('should activate backoff', async () => {
     const testMessage = TestMessage.getSample();
     await serviceBusEmitClient.testQueue3.send(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(4, 1000 * 60);

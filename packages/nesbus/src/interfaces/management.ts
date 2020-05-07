@@ -2,8 +2,8 @@ import { SbQueue, SbTopic, SbSubscription, SbRule } from '../models';
 import { SbRuleEntityProvision, SbTopicSubscriptionEntityProvision } from './entity-provision';
 
 export interface SbManagementClientAdapterFactory {
-  supported(options: SbManagementClientManagementAdapters[keyof SbManagementClientManagementAdapters]): boolean;
-  create(options: SbManagementClientManagementAdapters[keyof SbManagementClientManagementAdapters]): SbManagementClientAdapter;
+  supported(options: SbManagementClientOptions[keyof SbManagementClientOptions]): boolean;
+  create(options: SbManagementClientOptions[keyof SbManagementClientOptions]): SbManagementClientAdapter;
 }
 
 export interface SbManagementClientAdapter {
@@ -53,5 +53,4 @@ export interface SbManagementDefaultsAdapter {
 }
 
 // tslint:disable-next-line: no-empty-interface
-export interface SbManagementClientManagementAdapters { }
-export type SbManagementClientOptions = SbManagementClientManagementAdapters[keyof SbManagementClientManagementAdapters];
+export interface SbManagementClientOptions { }

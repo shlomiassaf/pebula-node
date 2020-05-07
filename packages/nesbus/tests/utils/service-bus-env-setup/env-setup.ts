@@ -1,9 +1,9 @@
-import { SbServerOptions, SbSubscriberMetadataOptions, SbEmitterMetadataOptions, SbSubscriptionMetadataOptions } from '@pebula/nesbus';
+import { SbServerOptions, SbSubscriberMetadataOptions, SbEmitterMetadataOptions, SbSubscriptionMetadataOptions } from '../../../src';
 import { SbConfigurator } from '../../../src/management/configurator';
 import { createManagementClientAdapter } from '../../../src/management/adapters';
 import { ConfigService } from '../../server/services/config-service';
 import { createManagement, createLogger } from '../../server/init/service-bus-setup';
-import { EMITTERS, SUBSCRIBERS } from '../../server/service-bus-test-entities';
+import { EMITTERS, SUBSCRIBERS, EntityTestEnvSetup } from '../../server/service-bus-test-entities';
 
 export async function run() {
   const config = new ConfigService();

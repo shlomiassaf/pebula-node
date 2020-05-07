@@ -18,7 +18,7 @@
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test:local": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
   },
   "devDependencies": {
     "@azure/amqp-common": "1.0.0-preview.13",
@@ -57,10 +57,13 @@
   },
   "execPluginConfig": {
     "isLib": true,
+    "ghTypeDoc": true,
     "ghDocusaurus": "website",
     "apiExtractor": {
       "dtsRollup": {
-        "enabled": false
+        "enabled": true,
+        "untrimmedFilePath": "<projectFolder>/cjs/index-public.d.ts",
+        "publicTrimmedFilePath": ""
       }
     }
   },

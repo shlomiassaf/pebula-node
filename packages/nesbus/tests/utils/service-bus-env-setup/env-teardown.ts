@@ -1,4 +1,4 @@
-import { SbServerOptions, SbSubscriberMetadataOptions, SbEmitterMetadataOptions, SbSubscriptionMetadataOptions } from '@pebula/nesbus';
+import { SbServerOptions, SbSubscriberMetadataOptions, SbEmitterMetadataOptions, SbSubscriptionMetadataOptions } from '../../../src';
 import { SbConfigurator } from '../../../src/management/configurator';
 import { createManagementClientAdapter } from '../../../src/management/adapters';
 import { ConfigService } from '../../server/services/config-service';

@@ -3,7 +3,7 @@ import { registerAdapter } from '../management';
 import { SbManagementClientAtomOptions, SbManagementClientAtomAdapter } from './management-client-atom-adapter';
 
 declare module '../interfaces/management' {
-  export interface SbManagementClientManagementAdapters {
+  export interface SbManagementClientOptions {
     atom: SbManagementClientAtomOptions;
   }
 }

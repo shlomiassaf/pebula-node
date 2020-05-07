@@ -123,7 +123,8 @@ export interface SbManagementClientAtomOptions extends SbConnectionOptions<Servi
 }
 
 // @public (undocumented)
-export type SbManagementClientOptions = SbManagementClientManagementAdapters[keyof SbManagementClientManagementAdapters];
+export interface SbManagementClientOptions {
+}
 
 // @public (undocumented)
 export interface SbManagementDefaultsAdapter {
@@ -195,7 +196,7 @@ export interface SbServerOptions {
     // (undocumented)
     logger?: LoggerService;
     // (undocumented)
-    management?: SbManagementClientOptions;
+    management?: SbManagementClientOptions[keyof SbManagementClientOptions];
     name?: string;
 }
 
@@ -263,6 +264,16 @@ export interface ServiceBusAadTokenCredentials {
 export interface ServiceBusConnectionStringCredentials {
     // (undocumented)
     connectionString: string;
+}
+
+// @public (undocumented)
+export interface ServiceBusManagementAadTokenCredentials extends ServiceBusAadTokenCredentials {
+    // (undocumented)
+    namespace: string;
+    // (undocumented)
+    resourceGroupName: string;
+    // (undocumented)
+    subscriptionId: string;
 }
 
 // @public (undocumented)

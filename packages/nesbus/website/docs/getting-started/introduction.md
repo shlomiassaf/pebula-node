@@ -42,10 +42,10 @@ export class ServiceBusEmitClient {
 
 ### Easy Setup
 
-The library also helps with service bus entity management through a declarative API for automatic creating
+The library also helps with service bus entity management through a declarative API for automatic creation
 of service bus entities based on the entities we define in the controllers / services in our application.
 
-We call it **provision**.
+We call it **provision**. [<DocLink to="docs/guide/provisioning">Read more...</DocLink>]
 
 This allows a **code-first** approach for service bus management and architecture.
 
@@ -60,3 +60,15 @@ In addition, **Observables** along with **Interceptors** allow us to use plugins
 For example, the **<DocLink to="docs/tasks/back-off">SbBackoffRetry plugin</DocLink>** wraps incoming service bus messages and handles them when their handler throws.
 It will perform a retry to handle them again but with a delay between each try. The delay is not constant and it is based on an algorithm (linear / exponential)
 so the effect of periodic stress on you server is reduced.
+
+## NOTE: @azure/service-bus@7
+
+:::info
+`@pebula/nesbus` supports `@azure/service-bus@1.1.6`.
+
+The azure team is currently working on a re-redesigned library, currently in preview (`7.0.0-preview.2`).
+Once version 7 becomes official, `@pebula/nesbus` will support it, with limited backward compatibility to v1 (critical bugs only).
+
+Since version 7 comes with significant breaking changes you should expect some changes in nesbus as well while
+some will not get noticed due to the abstraction.
+:::

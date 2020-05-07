@@ -7,7 +7,7 @@ export {
   SbModuleRegisterOptions,
   SbServerOptions,
   SbManagementClientOptions, SbManagementDefaultsAdapter,
-  ServiceBusAadTokenCredentials,
+  ServiceBusAadTokenCredentials, ServiceBusManagementAadTokenCredentials,
   ServiceBusConnectionStringCredentials,
   ServiceBusTokenProviderCredentials,
 

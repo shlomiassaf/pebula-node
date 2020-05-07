@@ -16,7 +16,7 @@
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
   },
   "devDependencies": {
     "@shelf/jest-mongodb": "^1.1.5",

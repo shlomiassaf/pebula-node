@@ -43,6 +43,25 @@ The configuration is defined in <ApiDocsLink type="interface" symbol="SbBackoffR
 - distortFactor: how much randomness to introduce into the interval (higher value === more randomness).
 For example, with a distortFactor of 10, the final delay will be multiplied by a value between 0.9 to 1.1
 
+```typescript
+@Controller()
+export class ServiceBusController {
+
+  @Queue<MethodDecorator>(({
+    name: 'nesbus-queue.demo'
+  })
+  @SbIntercept(new SbBackoffRetry({ retryCount: 3, factor: 1, delayType: 'linear' }))
+  testQueue3 = (source: Observable<SbContext>) => source
+    .pipe(
+      tap( context => {
+        const msg = context.getMessage();
+        throw new Error(`backoff ${msg.messageId}`);
+      }),
+    )
+
+}
+```
+
 :::warning
 Because [Transactions](https://github.com/Azure/azure-sdk-for-js/issues/8252) are not yet supported by `@azure/service-bus` using
 `SbBackoffRetry` comes with a little risk.

@@ -3,7 +3,7 @@ import { registerAdapter } from '../src/management';
 import { SbManagementClientArmOptions, SbManagementClientArmAdapter } from './management-client-arm-adapter';
 
 declare module '../src/interfaces/management' {
-  export interface SbManagementClientManagementAdapters {
+  export interface SbManagementClientOptions {
     arm: SbManagementClientArmOptions;
   }
 }

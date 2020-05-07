@@ -32,7 +32,7 @@ export interface SbServerOptions {
 
   client: SbConnectionOptions<SbCredentials, ServiceBusClientOptions>;
 
-  management?: SbManagementClientOptions;
+  management?: SbManagementClientOptions[keyof SbManagementClientOptions];
 
   logger?: LoggerService;
 }
@@ -84,7 +84,7 @@ export interface SbClientOptions {
    */
   client?: SbConnectionOptions<SbCredentials, ServiceBusClientOptions>;
 
-  management?: SbManagementClientOptions;
+  management?: SbManagementClientOptions[keyof SbManagementClientOptions];
 
   logger?: LoggerService;
 }

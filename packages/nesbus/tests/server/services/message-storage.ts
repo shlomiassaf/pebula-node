@@ -54,7 +54,7 @@ export class MessageStorage {
               if (this.store.length === count) {
                 clearTimeout(cancelTimeoutToken);
                 clearSubscription(subscription);
-                resolve(this.store);
+                setTimeout(() => resolve(this.store), 10);
               }
             },
             err => {

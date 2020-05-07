@@ -6,13 +6,13 @@ export interface EntityTestEnvSetup {
   teardown?: boolean;
 }
 
-declare module '@pebula/nesbus/src/interfaces/subscriber' {
+declare module '../../src/interfaces/subscriber' {
   export interface SbSubscriberMetadataOptions {
     testEnvSetup?: EntityTestEnvSetup;
   }
 }
 
-declare module '@pebula/nesbus/src/interfaces/emitter' {
+declare module '../../src/interfaces/emitter' {
   export interface SbEmitterMetadataOptions {
     testEnvSetup?: EntityTestEnvSetup;
   }
