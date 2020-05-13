@@ -1,6 +1,6 @@
 {
   "name": "@pebula/goosetyped",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "cjs/index.js",
   "types": "cjs/index-public.d.ts",
   "files": [
@@ -13,6 +13,7 @@
     "build": "tsc -p tsconfig.json",
     "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
     "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
+    "build:ci": "yarn typecheck && yarn test && yarn build:lib",
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",

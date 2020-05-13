@@ -105,10 +105,7 @@ export interface GtConnectOptions {
 export function GtDeleteOneHook(stage: 'pre' | 'post'): MethodDecoratorOf<never, any>;
 
 // @public (undocumented)
-export function GtDiscriminatorKey<T = string>(): PropertyDecoratorOf<T>;
-
-// @public (undocumented)
-export function GtDiscriminator(): ClassDecoratorOf<any, any>;
+export function GtDiscriminator(): PropertyDecoratorOf<string>;
 
 // @public (undocumented)
 export function GtDocument(metadata?: GtDocumentMetadataArgs): ClassDecoratorOf<Document_2, Model>;
@@ -285,6 +282,7 @@ export interface Model<QueryHelpers = {}> extends Model_2<Document_2, QueryHelpe
     create<T extends Document_2>(this: Ctor<T>, ...docs: any[]): Promise<T>;
     // (undocumented)
     create<T extends Document_2>(this: Ctor<T>, ...docsWithCallback: any[]): Promise<T>;
+    ctor<T extends Document_2>(this: Ctor<T>, doc: Partial<T>): T;
     find<T extends Document_2>(this: Ctor<T>, callback?: (err: any, res: T[]) => void): DocumentQuery<T[], T, QueryHelpers> & QueryHelpers;
     // (undocumented)
     find<T extends Document_2>(this: Ctor<T>, conditions: FilterQuery<T>, callback?: (err: any, res: T[]) => void): DocumentQuery<T[], T, QueryHelpers> & QueryHelpers;
@@ -417,6 +415,7 @@ export interface Resource<T = unknown> {
     [GT_SUB_DOCUMENT]: boolean;
     // (undocumented)
     new (doc?: any): SubDocument & T;
+    ctor<T extends SubDocument>(this: Ctor<T>, doc: Partial<T>): T;
     // (undocumented)
     prototype: SubDocument & T;
     // (undocumented)
