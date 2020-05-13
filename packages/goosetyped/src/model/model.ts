@@ -23,6 +23,9 @@ export interface Resource<T = unknown> {
   [GT_SUB_DOCUMENT]: boolean;
   schema: Schema;
 
+  /** Like `create()` but without the save, replaces the constructor. Useful when you want to create a new instance from a base discriminator class */
+  ctor<T extends SubDocument>(this: Ctor<T>, doc: Partial<T>): T;
+
   prototype: SubDocument & T;
 
   new(doc?: any): SubDocument & T;
@@ -30,6 +33,9 @@ export interface Resource<T = unknown> {
 
 export interface Model<QueryHelpers = {}> extends MongooseModel<Document, QueryHelpers> {
   [GT_DOCUMENT]: boolean;
+
+  /** Like `create()` but without the save, replaces the constructor. Useful when you want to create a new instance from a base discriminator class */
+  ctor<T extends Document>(this: Ctor<T>, doc: Partial<T>): T;
 
   /**
    * Finds a single document by its _id field. findById(id) is almost*
