@@ -83,5 +83,6 @@
     "AMQP",
     "nestjs",
     "microservice"
-  ]
+  ],
+  "gitHead": "97bd6b3c99c320163a38115fca4b276c5fdcceeb"
 }
