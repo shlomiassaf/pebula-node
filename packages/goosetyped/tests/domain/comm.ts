@@ -39,6 +39,9 @@ export class EmailComm extends BaseComm {
   @GtColumn()
   email: string;
 
+  @GtLocalProp()
+  initValue = String(Date.now());
+
   constructor(doc?: Partial<EmailComm>) { super(doc); }
 }
 
@@ -47,6 +50,9 @@ export class EmailComm extends BaseComm {
 export class PhoneComm extends BaseComm {
   @GtColumn()
   phone: string;
+
+  @GtLocalProp()
+  initValue = String(Date.now());
 
   constructor(doc?: Partial<PhoneComm>) {
     super(doc);
@@ -66,6 +72,9 @@ export class ResidenceComm extends BaseComm {
   zip: string;
   @GtColumn()
   country: string;
+
+  @GtLocalProp()
+  initValue = String(Date.now());
 
   constructor(doc?: Partial<ResidenceComm>) { super(doc); }
 }

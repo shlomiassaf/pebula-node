@@ -3,7 +3,7 @@ import { EmbeddedDocument } from '../mongoose.extend';
 import { GtSchemaContainer } from '../store';
 import { createModelName } from '../utils';
 import { GtColumnMetadata } from '../metadata';
-import { GT_LOCAL_INFO } from './constants';
+import { GT_LOCAL_INFO, GT_DISCRIMINATOR_ROOT } from './constants';
 import { ensureInstanceOf } from './utils';
 import { GtModelContainer, GtResourceContainer } from './base';
 import { syncModelInstance } from './sync';
@@ -43,6 +43,7 @@ export class GtLocalInfo {
     this.container.setSchemaOptions('discriminatorKey', discriminatorKey);
     (root.discriminator as any).children.set(discriminatorValue, this.container);
     Object.defineProperty(this.cls.prototype, discriminatorKey, { value: discriminatorValue, configurable: true, enumerable: true, writable: true });
+    this.cls[GT_DISCRIMINATOR_ROOT] = root.cls;
   }
 
   addProp(info: GtLocalPropInfo): void {

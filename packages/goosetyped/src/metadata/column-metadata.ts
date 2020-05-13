@@ -18,7 +18,13 @@ export class GtColumnMetadata {
 
   public resolvedColumnType: ResolvedColumnType;
 
-  constructor(public readonly key: string, public readonly options: GtColumnMetadataArgs<any>) { }
+  /**
+   * 
+   * @param key 
+   * @param options 
+   * @param softColumn A column that was added implicitly, through a mongoose feature (i.e. setting versionKey, timestamps, discriminatorKey, etc...)
+   */
+  constructor(public readonly key: string, public readonly options: GtColumnMetadataArgs<any>, public readonly softColumn = false) { }
 
   resolveType(target: object) {
     if (!this.resolvedColumnType) {

@@ -12,6 +12,8 @@ import {
   ResidenceComm,
   BasePaymentMethod,
   OrderItem,
+  ChequePaymentMethod,
+  StoreCreditPaymentMethod,
 } from './domain';
 
 describe('E2E Tests', () => {
@@ -82,6 +84,89 @@ describe('E2E Tests', () => {
       order.items.push({});
       const orderItem = order.items[0];
       expect(orderItem).toBeInstanceOf(OrderItem);
+    });
+
+    it('should support base class initialization in discriminators (SubDocuments)', async () => {
+      const phoneCommData: Partial<PhoneComm> = { type: 'PhoneComm',phone: '999-999-9999' };
+      const emailCommData: Partial<EmailComm> = { type: 'EmailComm', email: 'test@testing.teset' };
+      const residenceCommData: Partial<ResidenceComm> = {
+        type: 'ResidenceComm',
+        street: 'Testing Street',
+        city: 'Testville',
+        zip: 'TEST900',
+        country: 'Testland',
+      };
+      const phone = new BaseComm(phoneCommData);
+      const email = new BaseComm(emailCommData);
+      const residence = new BaseComm(residenceCommData);
+
+      expect(phone).toBeInstanceOf(BaseComm);
+      expect(email).toBeInstanceOf(BaseComm);
+      expect(residence).toBeInstanceOf(BaseComm);
+
+      expect(phone).toBeInstanceOf(PhoneComm);
+      expect(email).toBeInstanceOf(EmailComm);
+      expect(residence).toBeInstanceOf(ResidenceComm);
+
+      checkSubDocumentAfterCreate(phone, phoneCommData);
+      checkSubDocumentAfterCreate(email, emailCommData);
+      checkSubDocumentAfterCreate(residence, residenceCommData);
+
+      expect(phone.token).toBeTruthy();
+      expect(email.token).toBeTruthy();
+      expect(residence.token).toBeTruthy();
+
+      expect((phone as PhoneComm).initValue).toBeTruthy();
+      expect((email as EmailComm).initValue).toBeTruthy();
+      expect((residence as ResidenceComm).initValue).toBeTruthy();
+    });
+
+    it('should support base class initialization in discriminators (Documents)', async () => {
+      const ccPaymentData: Partial<CreditCardPaymentMethod> = {
+        kind: 'CreditCardPaymentMethod',
+        holderName: 'Testing Joe',
+        ccNumber: '1234-5534-4323-4343',
+        expired: { month: 12, year: 2025 },
+      };
+      const chequePaymentData: Partial<ChequePaymentMethod> = {
+        kind: 'ChequePaymentMethod',
+        serial: 'abcd',
+        toDate: new Date(),
+      };
+      const storeCreditPaymentData: Partial<StoreCreditPaymentMethod> = {
+        kind: 'StoreCreditPaymentMethod',
+        serial: 'abcd',
+      };
+
+      const ccPaymentFromBase = new BasePaymentMethod(ccPaymentData);
+      const ccPaymentFromDerived = new CreditCardPaymentMethod(ccPaymentData);
+      const chequePayment = new ChequePaymentMethod(chequePaymentData);
+      const storeCreditPayment = await BasePaymentMethod.create(storeCreditPaymentData);
+
+      expect(ccPaymentFromBase).toBeInstanceOf(BasePaymentMethod);
+      expect(ccPaymentFromDerived).toBeInstanceOf(BasePaymentMethod);
+      expect(chequePayment).toBeInstanceOf(BasePaymentMethod);
+      expect(storeCreditPayment).toBeInstanceOf(BasePaymentMethod);
+
+      expect(ccPaymentFromBase).toBeInstanceOf(CreditCardPaymentMethod);
+      expect(ccPaymentFromDerived).toBeInstanceOf(CreditCardPaymentMethod);
+      expect(chequePayment).toBeInstanceOf(ChequePaymentMethod);
+      expect(storeCreditPayment).toBeInstanceOf(StoreCreditPaymentMethod);
+
+      checkSubDocumentAfterCreate(ccPaymentFromBase, ccPaymentData);
+      checkSubDocumentAfterCreate(ccPaymentFromDerived, ccPaymentData);
+      checkSubDocumentAfterCreate(chequePayment, chequePaymentData);
+      checkSubDocumentAfterCreate(storeCreditPayment, storeCreditPaymentData);
+
+      expect(ccPaymentFromBase.token).toBeTruthy();
+      expect(ccPaymentFromDerived.token).toBeTruthy();
+      expect(chequePayment.token).toBeTruthy();
+      expect(storeCreditPayment.token).toBeTruthy();
+
+      expect((ccPaymentFromBase as CreditCardPaymentMethod).initValue).toBeTruthy();
+      expect((ccPaymentFromDerived as CreditCardPaymentMethod).initValue).toBeTruthy();
+      expect((chequePayment as ChequePaymentMethod).initValue).toBeTruthy();
+      expect((storeCreditPayment as StoreCreditPaymentMethod).initValue).toBeTruthy();
     });
 
     it('Support single embedded discriminator', async () => {

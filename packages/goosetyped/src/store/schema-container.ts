@@ -188,6 +188,31 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
         this.applyColumn(column);
       }
 
+      // handling soft keys
+      for (const k of Object.keys(this.modifiedSchemaOptions)) {
+        switch (k) {
+          case 'discriminatorKey':
+          case 'versionKey':
+            const value = this.modifiedSchemaOptions[k] as string;
+            if (!this.columns.has(value)) {
+              const metadata = new GtColumnMetadata(value, {}, true);
+              metadata.resolveType(this.target.prototype);
+              this.applyColumn(metadata);
+            }
+            break;
+          case 'timestamps':
+            const { createdAt, updatedAt } = this.modifiedSchemaOptions[k] as mongoose.SchemaTimestampsConfig;
+            for (const key of [createdAt, updatedAt] as string[]) {
+              if (key && !this.columns.has(key)) {
+                const metadata = new GtColumnMetadata(key, {});
+                metadata.resolveType(this.target.prototype);
+                this.applyColumn(metadata);
+              }
+            }
+          break;
+        }
+      }
+
       if (type) {
         this.schemaMetadata = type.setMetadata(metadataArgs, { target: this.target }, this);
         if (type !== GtDocumentMetadata) {
@@ -207,15 +232,19 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
   }
 
   private applyColumn(column: GtColumnMetadata): void {
-    this.processGlobalOptionsSetInColumnMetadata(column);
+    let knownContainer: GtSchemaContainer;
 
-    const knownContainer = this.findKnownContainer(column);
-    const schema = knownContainer && column.isContainer ? createEmbeddedContainerForType(knownContainer, column) : column.schema;
-    this.schema.add({ [column.key]: schema });
+    if (!column.softColumn) {
+      this.processGlobalOptionsSetInColumnMetadata(column);
 
-    if (knownContainer) {
-      this.handleNestedDocumentsAndDiscriminators(knownContainer, column);
-    }
+      knownContainer = this.findKnownContainer(column);
+      const schema = knownContainer && column.isContainer ? createEmbeddedContainerForType(knownContainer, column) : column.schema;
+      this.schema.add({ [column.key]: schema });
+  
+      if (knownContainer) {
+        this.handleNestedDocumentsAndDiscriminators(knownContainer, column);
+      }
+    }    
     this.localInfo.addProp({
       key: column.key,
       embedded: knownContainer ? knownContainer.localInfo : undefined,

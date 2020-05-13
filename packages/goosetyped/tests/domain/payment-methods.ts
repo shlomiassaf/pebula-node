@@ -42,6 +42,8 @@ export class BasePaymentMethod extends GtModel() {
   @GtIndex({ sort: 'desc' })
   updateDate: Date;
 
+  @GtLocalProp()
+  token?: string = String(Date.now());
 }
 
 @GtDocument()
@@ -59,6 +61,9 @@ export class CreditCardPaymentMethod extends BasePaymentMethod {
   @GtColumn()
   expired: CreditCardPaymentMethodExpire;
 
+  @GtLocalProp()
+  initValue = String(Date.now());
+
   constructor(doc?: Partial<CreditCardPaymentMethod>) {
     super(doc);
   }
@@ -73,6 +78,9 @@ export class ChequePaymentMethod extends BasePaymentMethod {
   @GtColumn()
   toDate: Date;
 
+  @GtLocalProp()
+  initValue = String(Date.now());
+
   constructor(doc?: Partial<ChequePaymentMethod>) { super(doc); }
 }
 
@@ -81,6 +89,9 @@ export class ChequePaymentMethod extends BasePaymentMethod {
 export class StoreCreditPaymentMethod extends BasePaymentMethod {
   @GtColumn()
   serial: string;
+
+  @GtLocalProp()
+  initValue = String(Date.now());
 
   constructor(doc?: Partial<StoreCreditPaymentMethod>) { super(doc); }
 }
