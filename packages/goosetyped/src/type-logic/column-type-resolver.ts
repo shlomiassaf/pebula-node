@@ -8,14 +8,16 @@ import { createFinalColumnTypes } from './mongo-type-resolver';
 import { isContainerResolveType } from './utils';
 
 function findMongoTypeForRuntimeType(tsType: Ctor<any>) {
-  const schemaType = getSchemaType(tsType);
-  if (schemaType) {
-    return schemaType;
-  }
-
-  const schemaContainer = gtSchemaStore.get(tsType);
-  if (schemaContainer) {
-    return schemaContainer.schema;
+  if (tsType) {
+    const schemaType = getSchemaType(tsType);
+    if (schemaType) {
+      return schemaType;
+    }
+  
+    const schemaContainer = gtSchemaStore.get(tsType);
+    if (schemaContainer) {
+      return schemaContainer.schema;
+    }
   }
 }
 
