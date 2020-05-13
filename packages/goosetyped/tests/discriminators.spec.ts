@@ -32,7 +32,8 @@ describe('E2E Tests', () => {
         country: 'Testland',
       };
 
-      const phoneComm = new PhoneComm(phoneCommData);
+      
+      const phoneComm = BaseComm.ctor({ ...phoneCommData, type: 'PhoneComm' });
       const emailComm = new EmailComm(emailCommData);
       const residenceComm = new ResidenceComm(residenceCommData);
 

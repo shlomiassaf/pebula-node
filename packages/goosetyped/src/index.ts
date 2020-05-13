@@ -11,9 +11,8 @@ export {
   GtVersionKey,
   GtTimestampCreated, GtTimestampUpdated,
   GtToJSON, GtToObject,
-  GtDiscriminatorKey,
   GtSkipVersioning,
-  GtDiscriminatorType,
+  GtDiscriminator,
 
   GtInitHook, GtValidateHook, GtSaveHook, GtRemoveHook, GtDeleteOneHook, GtUpdateOneHook,
   GtInsertManyHook,

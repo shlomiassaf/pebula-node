@@ -6,10 +6,9 @@ import {
   GtVersionKey,
   GtDocument, GtSubDocument,
   GtColumn,
-  GtDiscriminatorType,
+  GtDiscriminator,
   GtTimestampCreated,
   GtTimestampUpdated,
-  GtDiscriminatorKey,
   GtIndex,
   GtToJSON,
   DocumentArray,
@@ -36,7 +35,7 @@ export class SupplierInfoSubDocument extends GtResource() {
 
 @GtDocument()
 export class BaseSupplierInfo extends GtModel() {
-  @GtDiscriminatorKey()
+  @GtDiscriminator()
   kind: string;
 
   @GtColumn()
@@ -61,21 +60,18 @@ export class BaseSupplierInfo extends GtModel() {
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class PickupSupplierInfo extends BaseSupplierInfo {
   @GtColumn()
   pickupLocation: string;
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class PostSupplierInfo extends BaseSupplierInfo {
   @GtColumn()
   postFee: string;
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class AssembleSupplierInfo extends BaseSupplierInfo {
   @GtColumn()
   assembleFee: string;

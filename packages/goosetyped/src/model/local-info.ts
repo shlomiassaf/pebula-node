@@ -30,21 +30,8 @@ export class GtLocalInfo {
     const { target } = container;
     this.cls = target as any;
     this.cls[GT_LOCAL_INFO] = this;
-  }
 
-  markChildDiscriminator(root: GtLocalInfo) {
-    this.discriminator = { type: 'child', root };
-    if (!root.discriminator) {
-      root.discriminator = { type: 'root', children: new Map<string, GtSchemaContainer>() };
-      root.cls[GT_DISCRIMINATOR_ROOT] = root.cls;
-    }
-
-    const discriminatorKey = root.container.getSchemaOptions('discriminatorKey');
-    const discriminatorValue = createModelName(this.cls);
-    this.container.setSchemaOptions('discriminatorKey', discriminatorKey);
-    (root.discriminator as any).children.set(discriminatorValue, this.container);
-    Object.defineProperty(this.cls.prototype, discriminatorKey, { value: discriminatorValue, configurable: true, enumerable: true, writable: true });
-    this.cls[GT_DISCRIMINATOR_ROOT] = root.cls;
+    this.detectDiscriminators(this.cls[GT_DISCRIMINATOR_ROOT]);
   }
 
   addProp(info: GtLocalPropInfo): void {
@@ -137,5 +124,18 @@ export class GtLocalInfo {
     // if they both equal, it means that doc was an instance from the user so do bind.
     const bind = propValue === doc;
     syncModelInstance(propValue, embeddedDoc, propLocalInfo, false, bind);
+  }
+
+  private detectDiscriminators(root: typeof GtModelContainer | typeof GtResourceContainer) {
+    // discriminator, but not me... thus i'm a child
+    if (root && root !== this.cls) {
+      const rootLocalInfo = root[GT_LOCAL_INFO];
+      this.discriminator = { type: 'child', root: rootLocalInfo };
+      const discriminatorKey = rootLocalInfo.container.getSchemaOptions('discriminatorKey');
+      const discriminatorValue = createModelName(this.cls);
+      this.container.setSchemaOptions('discriminatorKey', discriminatorKey);
+      (rootLocalInfo.discriminator as any).children.set(discriminatorValue, this.container);
+      Object.defineProperty(this.cls.prototype, discriminatorKey, { value: discriminatorValue, configurable: true, enumerable: true, writable: true });
+    }
   }
 }

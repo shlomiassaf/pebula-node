@@ -10,7 +10,7 @@ sidebar_label: 3. Discriminators
 
 ```typescript
 /* module: person.ts */
-import { GtDocument, GtModel, GtColumn, GtDiscriminatorKey } from '@pebula/goosetyped';
+import { GtDocument, GtModel, GtColumn, GtDiscriminator } from '@pebula/goosetyped';
 
 @GtDocument()
 export class Person<T extends string> extends GtModel() {
@@ -19,29 +19,27 @@ export class Person<T extends string> extends GtModel() {
 
   @GtColumn() age: number;
 
-  @GtDiscriminatorKey()
+  @GtDiscriminator()
   type: T;
 }
 ```
 
 ```typescript
-import { GtDocument, GtModel, GtColumn, GtDiscriminatorType } from '@pebula/goosetyped';
+import { GtDocument, GtModel, GtColumn } from '@pebula/goosetyped';
 import { Person } from './person';
 
 @GtDocument()
-@GtDiscriminatorType()
+
 export class BusinessMan extends Person<'BusinessMan'> {
    @GtColumn() businessTrips: number;
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class Soldier extends Person<'Soldier'> {
    @GtColumn() releaseDate: Date;
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class Athlete extends Person<'Athlete'> {
    @GtColumn() medals: number;
 }
@@ -63,7 +61,8 @@ export class SalesLead extends GtModel() {
 
   @GtColumn() receivedAt: Date;
 
-  person: Person<string>;
+  @GtColumn({ type: () => Person })
+  person: BusinessMan | Soldier | Athlete;
 }
 ```
 
@@ -78,7 +77,7 @@ export class Course extends GtModel() {
 
   @GtColumn() startDate: Date;
 
-  @GtDiscriminatorKey()
-  students: DocumentArray<Person>;
+  @GtColumn({ type: () => Person })
+  students: DocumentArray<BusinessMan | Soldier | Athlete>;
 }
 ```

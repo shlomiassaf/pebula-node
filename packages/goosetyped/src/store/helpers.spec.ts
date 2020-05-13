@@ -1,6 +1,6 @@
 // tslint:disable: max-classes-per-file
 import { initMongoConnection } from '../../tests/utils';
-import { GtDocument, GtDiscriminatorKey, GtDiscriminatorType, GtColumn } from '../decorators';
+import { GtDocument, GtDiscriminator, GtColumn } from '../decorators';
 import { GtModel } from '../model';
 import { getDiscriminatorKeysOf, getDiscriminatorKeyFor, getEnum } from './helpers';
 
@@ -11,16 +11,14 @@ describe('goosetyped', () => {
     it('should return valid discriminator keys from getDiscriminatorKeysOf', () => {
       @GtDocument()
       class BaseModel extends GtModel() {
-        @GtDiscriminatorKey()
+        @GtDiscriminator()
         kind: string;
       }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P1Model extends BaseModel { }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P2Model extends BaseModel { }
 
       let discriminators = getDiscriminatorKeysOf(BaseModel);
@@ -36,16 +34,14 @@ describe('goosetyped', () => {
     it('should return valid discriminator key from getDiscriminatorKeyFor', () => {
       @GtDocument()
       class BaseModel extends GtModel() {
-        @GtDiscriminatorKey()
+        @GtDiscriminator()
         kind: string;
       }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P1Model extends BaseModel { }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P2Model extends BaseModel { }
 
       expect(getDiscriminatorKeyFor(P1Model)).toEqual('P1Model');

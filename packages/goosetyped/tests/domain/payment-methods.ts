@@ -5,10 +5,9 @@ import {
   GtVersionKey,
   GtDocument, GtSubDocument,
   GtColumn,
-  GtDiscriminatorType,
+  GtDiscriminator,
   GtTimestampCreated,
   GtTimestampUpdated,
-  GtDiscriminatorKey,
   GtIndex,
   GtToJSON,
   DocumentArray,
@@ -30,8 +29,7 @@ export class CreditCardPaymentMethodExpire extends GtResource() {
 
 @GtDocument()
 export class BasePaymentMethod extends GtModel() {
-
-  @GtDiscriminatorKey()
+  @GtDiscriminator()
   kind: string;
 
   @GtTimestampCreated()
@@ -47,7 +45,6 @@ export class BasePaymentMethod extends GtModel() {
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class CreditCardPaymentMethod extends BasePaymentMethod {
 
   @GtColumn()
@@ -70,7 +67,6 @@ export class CreditCardPaymentMethod extends BasePaymentMethod {
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class ChequePaymentMethod extends BasePaymentMethod {
   @GtColumn()
   serial: string;
@@ -85,7 +81,6 @@ export class ChequePaymentMethod extends BasePaymentMethod {
 }
 
 @GtDocument()
-@GtDiscriminatorType()
 export class StoreCreditPaymentMethod extends BasePaymentMethod {
   @GtColumn()
   serial: string;

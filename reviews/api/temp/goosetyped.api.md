@@ -108,7 +108,7 @@ export function GtDeleteOneHook(stage: 'pre' | 'post'): MethodDecoratorOf<never,
 export function GtDiscriminatorKey<T = string>(): PropertyDecoratorOf<T>;
 
 // @public (undocumented)
-export function GtDiscriminatorType(): ClassDecoratorOf<any, any>;
+export function GtDiscriminator(): ClassDecoratorOf<any, any>;
 
 // @public (undocumented)
 export function GtDocument(metadata?: GtDocumentMetadataArgs): ClassDecoratorOf<Document_2, Model>;

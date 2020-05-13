@@ -2,7 +2,6 @@
 import * as mongoose from 'mongoose';
 import { GtColumn } from './column';
 import {
-  GtDiscriminatorKey,
   GtSkipVersioning,
   GtTimestampCreated,
   GtTimestampUpdated,
@@ -11,6 +10,7 @@ import {
   GtToObject,
 } from './schema-options';
 import { gtSchemaStore } from '../store';
+import { GtDiscriminator } from './discriminator-type';
 
 function getOptionValue<TOptKey extends keyof mongoose.SchemaOptions>(cls: any, key: TOptKey): mongoose.SchemaOptions[TOptKey] {
   return gtSchemaStore.get(cls).getSchemaOptions(key);
@@ -18,9 +18,9 @@ function getOptionValue<TOptKey extends keyof mongoose.SchemaOptions>(cls: any, 
 
 describe('goosetyped', () => {
   describe('decorators', () => {
-    it('should register a `discriminatorKey` using GtDiscriminatorKey', () => {
+    it('should register a `discriminatorKey` using GtDiscriminator', () => {
       class TestModel {
-        @GtDiscriminatorKey()
+        @GtDiscriminator()
         myDiscriminatorKey: string;
       }
 

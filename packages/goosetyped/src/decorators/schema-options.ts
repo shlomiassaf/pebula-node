@@ -13,21 +13,15 @@ export function GtSkipVersioning(): PropertyDecorator {
   return setSkipVersioning;
 }
 
-export function GtDiscriminatorKey<T = string>(): PropertyDecoratorOf<T> {
-  return (target: object, key: string) => {
-    gtSchemaStore.getCreate(target).setSchemaOptions('discriminatorKey', key as string);
-  };
-}
-
-  /**
-   * A decorator for `toJSON` with a prototype bound implementation for the `transform` function.
-   *
-   * Note that it recommended to avoid using a transform function (through schema options) or a transform method through this decorator
-   * and instead apply a transformation by overriding the `toJSON`.
-   * Call the super method and apply changed to the returned value, this is much better then using an out of context transformer.
-   *
-   * @link https://mongoosejs.com/docs/4.x/docs/guide.html#toJSON
-   */
+/**
+ * A decorator for `toJSON` with a prototype bound implementation for the `transform` function.
+ *
+ * Note that it recommended to avoid using a transform function (through schema options) or a transform method through this decorator
+ * and instead apply a transformation by overriding the `toJSON`.
+ * Call the super method and apply changed to the returned value, this is much better then using an out of context transformer.
+ *
+ * @link https://mongoosejs.com/docs/4.x/docs/guide.html#toJSON
+ */
 export function GtToJSON(config?: Omit<mongoose.DocumentToObjectOptions, 'transform'>): MethodDecoratorOf<[any, any]> {
   return (target: object, key: string, descriptor: PropertyDescriptor) => {
     gtSchemaStore.getCreate(target).setSchemaOptions('toJSON', {

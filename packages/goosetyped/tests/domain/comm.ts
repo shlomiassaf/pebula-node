@@ -4,10 +4,9 @@ import {
   GtVersionKey,
   GtSubDocument, GtResource,
   GtColumn,
-  GtDiscriminatorType,
+  GtDiscriminator,
   GtTimestampCreated,
   GtTimestampUpdated,
-  GtDiscriminatorKey,
   GtIndex,
   GtLocalProp,
   GtToJSON,
@@ -18,7 +17,7 @@ import {
 @GtSubDocument({ noId: true })
 export class BaseComm extends GtResource() {
 
-  @GtDiscriminatorKey()
+  @GtDiscriminator()
   type: string;
 
   @GtTimestampCreated()
@@ -34,7 +33,6 @@ export class BaseComm extends GtResource() {
 }
 
 @GtSubDocument({ noId: true })
-@GtDiscriminatorType()
 export class EmailComm extends BaseComm {
   @GtColumn()
   email: string;
@@ -46,7 +44,6 @@ export class EmailComm extends BaseComm {
 }
 
 @GtSubDocument({ noId: true })
-@GtDiscriminatorType()
 export class PhoneComm extends BaseComm {
   @GtColumn()
   phone: string;
@@ -60,7 +57,6 @@ export class PhoneComm extends BaseComm {
 }
 
 @GtSubDocument({ noId: true })
-@GtDiscriminatorType()
 export class ResidenceComm extends BaseComm {
   @GtColumn({
     required: true,

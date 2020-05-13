@@ -10,7 +10,7 @@ Up to this point we've only used class properties which we're decorated with `@G
 What will happen if we use non-column properties, can we use initializers?
 
 ```typescript
-import { GtDocument, GtModel, GtColumn, GtDiscriminatorKey } from '@pebula/goosetyped';
+import { GtDocument, GtModel, GtColumn } from '@pebula/goosetyped';
 
 @GtDocument()
 export class Person extends GtModel() {

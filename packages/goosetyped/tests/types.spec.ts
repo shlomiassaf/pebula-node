@@ -3,7 +3,7 @@ import {
   GtModel, GtResource,
   GtDocument, GtSubDocument,
   GtColumn, GtLocalProp,
-  GtDiscriminatorKey, GtDiscriminatorType,
+  GtDiscriminator,
 } from '../';
 
 import { initMongoConnection, checkSubDocumentAfterCreate, checkDocumentAfterCreate } from './utils';
@@ -106,7 +106,7 @@ describe('E2E Tests', () => {
     it('should support the map type (embedded - discriminator)', async () => {
       @GtDocument()
       class BaseModel extends GtModel() {
-        @GtDiscriminatorKey()
+        @GtDiscriminator()
         kind: string;
 
         @GtLocalProp()
@@ -114,7 +114,6 @@ describe('E2E Tests', () => {
       }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P1Model extends BaseModel {
         @GtColumn({})
         prop1: string = 'prop1';
@@ -124,7 +123,6 @@ describe('E2E Tests', () => {
       }
 
       @GtDocument()
-      @GtDiscriminatorType()
       class P2Model extends BaseModel {
         @GtColumn({})
         prop2: string = 'prop2';
