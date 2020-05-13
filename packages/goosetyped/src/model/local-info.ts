@@ -36,6 +36,7 @@ export class GtLocalInfo {
     this.discriminator = { type: 'child', root };
     if (!root.discriminator) {
       root.discriminator = { type: 'root', children: new Map<string, GtSchemaContainer>() };
+      root.cls[GT_DISCRIMINATOR_ROOT] = root.cls;
     }
 
     const discriminatorKey = root.container.getSchemaOptions('discriminatorKey');

@@ -21,23 +21,17 @@ export class GtModelContainer extends Model {
         return true;
       }
     }
-    if (this[GT_DISCRIMINATOR_ROOT] && instance instanceof this[GT_DISCRIMINATOR_ROOT]) {
-      const discriminatorKey = this[GT_DISCRIMINATOR_ROOT][GT_LOCAL_INFO].container.getSchemaOptions('discriminatorKey');
-      return this.name === instance[discriminatorKey];
-    }
     return false;
   }
 
   constructor(doc?: any) {
     super();
+    if (this.constructor[GT_DISCRIMINATOR_ROOT] === this.constructor) {
+      throw new Error(`Directly instantiating the base discriminator type is not allowed`);
+    }
+
     if (doc) {
       const localInfo = findSchemaContainerOfChildDiscriminator(doc, this.constructor[GT_LOCAL_INFO]);
-
-      // This should only happen when you new from the base class
-      if (localInfo !== this.constructor[GT_LOCAL_INFO]) {
-        doc = new localInfo.cls(doc);
-      }
-
       syncModelInstance(doc, this, localInfo, true);
     }
   }
@@ -58,21 +52,15 @@ export class GtResourceContainer {
         return true;
       }
     }
-    if (this[GT_DISCRIMINATOR_ROOT] && instance instanceof this[GT_DISCRIMINATOR_ROOT]) {
-      const discriminatorKey = this[GT_DISCRIMINATOR_ROOT][GT_LOCAL_INFO].container.getSchemaOptions('discriminatorKey');
-      return this.name === instance[discriminatorKey];
-    }
     return false;
   }
 
   constructor(doc?: any) {
+    if (this.constructor[GT_DISCRIMINATOR_ROOT] === this.constructor) {
+      throw new Error(`Directly instantiating the base discriminator type is not allowed`);
+    }
     if (doc) {
       const localInfo = findSchemaContainerOfChildDiscriminator(doc, this.constructor[GT_LOCAL_INFO]);
-
-      // This should only happen when you new from the base class
-      if (localInfo !== this.constructor[GT_LOCAL_INFO]) {
-        doc = new localInfo.cls(doc);
-      }
       syncModelInstance(doc, this, localInfo, true);
     }
   }

@@ -4,7 +4,8 @@ import { GtModel } from './mixin';
 
 import {
   initMongoConnection,
-
+  BaseComm,
+  BasePaymentMethod,
   Order,
   OrderStatusType,
   CreditCardPaymentMethod,
@@ -442,5 +443,9 @@ describe('goosetyped', () => {
       expect(item1.supplier.token).toBe('!!!');
     });
 
+    it('should throw when trying to directly instantiate a base discriminator class', () => {
+      expect(() => new BaseComm()).toThrowError('Directly instantiating the base discriminator type is not allowed');
+      expect(() => new BasePaymentMethod()).toThrowError('Directly instantiating the base discriminator type is not allowed');
+    });
   });
 });

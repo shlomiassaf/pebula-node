@@ -35,6 +35,37 @@ export class SchemaTestExplorer<T, Z extends Ctor<T>> {
     return this;
   }
 
+  verifyInternalDoc(instance: T) {
+    const internalDoc = (instance as any)._doc;
+    for (const prop of this.container.localInfo.props.values()) {
+      const value = instance[prop.key];
+      const internalValue = internalDoc[prop.key];
+      if (!prop.local) {
+        if (!prop.embedded) {
+          expect(value).toEqual(internalValue);
+        } else {
+          if (prop.columnMeta.isContainer) {
+            if(prop.columnMeta.resolvedColumnType.reflectedType.tsType === Map) {
+              for (const v of value.values()) {
+                const childSchemaTestExplorer = new SchemaTestExplorer(prop.embedded.container.model);
+                childSchemaTestExplorer.verifyInternalDoc(v);
+              }
+            } else {
+              for (const v of value) {
+                const childSchemaTestExplorer = new SchemaTestExplorer(prop.embedded.container.model);
+                childSchemaTestExplorer.verifyInternalDoc(v);
+              }
+            }
+          } else {
+            const childSchemaTestExplorer = new SchemaTestExplorer(prop.embedded.container.model);
+            childSchemaTestExplorer.verifyInternalDoc(value);
+          }
+        }
+      }
+    }
+    
+  }
+  
 }
 
 export class SchemaTypeTestExplorer<T, Z extends Ctor<T>> {

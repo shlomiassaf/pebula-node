@@ -1,4 +1,5 @@
 import { initMongoConnection, checkDocumentAfterCreate, checkSubDocumentAfterCreate } from './utils';
+import { SchemaTestExplorer } from '../src/testing/schema-explorer';
 import {
   Order,
   OrderStatusType,
@@ -96,9 +97,9 @@ describe('E2E Tests', () => {
         zip: 'TEST900',
         country: 'Testland',
       };
-      const phone = new BaseComm(phoneCommData);
-      const email = new BaseComm(emailCommData);
-      const residence = new BaseComm(residenceCommData);
+      const phone = new PhoneComm(phoneCommData);
+      const email = new EmailComm(emailCommData);
+      const residence = new ResidenceComm(residenceCommData);
 
       expect(phone).toBeInstanceOf(BaseComm);
       expect(email).toBeInstanceOf(BaseComm);
@@ -138,7 +139,8 @@ describe('E2E Tests', () => {
         serial: 'abcd',
       };
 
-      const ccPaymentFromBase = new BasePaymentMethod(ccPaymentData);
+      BaseComm.schema
+      const ccPaymentFromBase = await BasePaymentMethod.create(ccPaymentData);
       const ccPaymentFromDerived = new CreditCardPaymentMethod(ccPaymentData);
       const chequePayment = new ChequePaymentMethod(chequePaymentData);
       const storeCreditPayment = await BasePaymentMethod.create(storeCreditPaymentData);
@@ -265,5 +267,18 @@ describe('E2E Tests', () => {
       expect(residenceCommRaw).toBeInstanceOf(ResidenceComm);
     });
 
+    // it('should support base class initialization in discriminators (Documents)', async () => {
+    //   const ccPaymentData: Partial<CreditCardPaymentMethod> = {
+    //     kind: 'CreditCardPaymentMethod',
+    //     holderName: 'Testing Joe',
+    //     ccNumber: '1234-5534-4323-4343',
+    //     expired: { month: 12, year: 2025 },
+    //   };
+
+    //   const ccPaymentFromBase = new BasePaymentMethod(ccPaymentData);
+    //   const explorer = new SchemaTestExplorer(CreditCardPaymentMethod);
+    //   explorer.verifyInternalDoc(ccPaymentFromBase as any);
+
+    // });
   });
 });
