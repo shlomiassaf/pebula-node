@@ -173,6 +173,12 @@ export function GtModel<T1, C1, T2, C2>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>): C
 export function GtModel<T1, C1, T2, C2, T3, C3>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>): Ctor<Document_2 & T1 & T2 & T3> & Model & C1 & C2 & C3;
 
 // @public (undocumented)
+export function GtModel<T1, C1, T2, C2, T3, C3, T4, C4>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>): Ctor<Document_2 & T1 & T2 & T3 & T4> & Model & C1 & C2 & C3 & C4;
+
+// @public (undocumented)
+export function GtModel<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>, m5: C5 & Ctor<T5>): Ctor<Document_2 & T1 & T2 & T3 & T4 & T5> & Model & C1 & C2 & C3 & C4 & C5;
+
+// @public (undocumented)
 export function GtPlugin(metadata: GtPluginMetadataArgs): ClassDecorator;
 
 // @public (undocumented)
@@ -211,6 +217,12 @@ export function GtResource<T1, C1, T2, C2>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>)
 
 // @public (undocumented)
 export function GtResource<T1, C1, T2, C2, T3, C3>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>): Ctor<SubDocument & T1 & T2 & T3> & Resource & C1 & C2 & C3;
+
+// @public (undocumented)
+export function GtResource<T1, C1, T2, C2, T3, C3, T4, C4>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>): Ctor<SubDocument & T1 & T2 & T3 & T4> & Resource & C1 & C2 & C3 & C4;
+
+// @public (undocumented)
+export function GtResource<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>, m5: C5 & Ctor<T5>): Ctor<SubDocument & T1 & T2 & T3 & T4 & T5> & Resource & C1 & C2 & C3 & C4 & C5;
 
 // @public (undocumented)
 export function GtSaveHook(stage: 'pre' | 'post'): MethodDecoratorOf<never, any>;

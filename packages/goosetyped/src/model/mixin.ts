@@ -44,6 +44,8 @@ export function GtModel(): Ctor<Document> & Model;
 export function GtModel<T1, C1>(m1: C1 & Ctor<T1>): Ctor<Document & T1> & Model & C1;
 export function GtModel<T1, C1, T2, C2>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>): Ctor<Document & T1 & T2> & Model & C1 & C2;
 export function GtModel<T1, C1, T2, C2, T3, C3>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>): Ctor<Document & T1 & T2 & T3> & Model & C1 & C2 & C3;
+export function GtModel<T1, C1, T2, C2, T3, C3, T4, C4>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>): Ctor<Document & T1 & T2 & T3 & T4> & Model & C1 & C2 & C3 & C4;
+export function GtModel<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>, m5: C5 & Ctor<T5>): Ctor<Document & T1 & T2 & T3 & T4 & T5> & Model & C1 & C2 & C3 & C4 & C5;
 export function GtModel<TMIXIN, CMIXIN>(...mixins: Array<CMIXIN & Ctor<TMIXIN>>): Ctor<TMIXIN> & CMIXIN {
 
   class GtModelContainer extends Base.GtModelContainer { }
@@ -60,6 +62,8 @@ export function GtResource(): Ctor<SubDocument> & Resource;
 export function GtResource<T1, C1>(m1: C1 & Ctor<T1>): Ctor<SubDocument & T1> & Resource & C1;
 export function GtResource<T1, C1, T2, C2>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>): Ctor<SubDocument & T1 & T2> & Resource & C1 & C2;
 export function GtResource<T1, C1, T2, C2, T3, C3>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>): Ctor<SubDocument & T1 & T2 & T3> & Resource & C1 & C2 & C3;
+export function GtResource<T1, C1, T2, C2, T3, C3, T4, C4>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>): Ctor<SubDocument & T1 & T2 & T3 & T4> & Resource & C1 & C2 & C3 & C4;
+export function GtResource<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Ctor<T1>, m2: C2 & Ctor<T2>, m3: C3 & Ctor<T3>, m4: C4 & Ctor<T4>, m5: C5 & Ctor<T5>): Ctor<SubDocument & T1 & T2 & T3 & T4 & T5> & Resource & C1 & C2 & C3 & C4 & C5;
 export function GtResource<TMIXIN, CMIXIN>(...mixins: Array<CMIXIN & Ctor<TMIXIN>>): Ctor<TMIXIN> & CMIXIN {
 
   class GtResourceContainer extends Base.GtResourceContainer { }
