@@ -24,7 +24,7 @@ export class GtModelContainer extends Model {
   constructor(doc?: any) {
     super();
     if (doc) {
-      const localInfo = findSchemaContainerOfChildDiscriminator(this, this.constructor[GT_LOCAL_INFO]);
+      const localInfo = findSchemaContainerOfChildDiscriminator(doc, this.constructor[GT_LOCAL_INFO]);
       syncModelInstance(doc, this, localInfo, true);
     }
   }
@@ -47,7 +47,7 @@ export class GtResourceContainer {
 
   constructor(doc?: any) {
     if (doc) {
-      const localInfo = findSchemaContainerOfChildDiscriminator(this, this.constructor[GT_LOCAL_INFO]);
+      const localInfo = findSchemaContainerOfChildDiscriminator(doc, this.constructor[GT_LOCAL_INFO]);
       syncModelInstance(doc, this, localInfo, true);
     }
   }

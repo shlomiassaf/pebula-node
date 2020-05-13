@@ -12,12 +12,12 @@ export function hasExtendingSchema(instanceSchema: Schema, extenders: Set<GtSche
   return false;
 }
 
-export function findSchemaContainerOfChildDiscriminator(instance: any, localInfo: GtLocalInfo): GtLocalInfo {
+export function findSchemaContainerOfChildDiscriminator(instanceLike: any, localInfo: GtLocalInfo): GtLocalInfo {
   if (localInfo.discriminator && localInfo.discriminator.type === 'root') {
     const discriminatorKey = localInfo.container.getSchemaOptions('discriminatorKey');
-    const discriminatorSchemaContainer = localInfo.discriminator.children.get(instance[discriminatorKey]);
+    const discriminatorSchemaContainer = localInfo.discriminator.children.get(instanceLike[discriminatorKey]);
     if (!discriminatorSchemaContainer) {
-      throw new Error(`Invalid discriminator request for ${localInfo.container.getName()}, discriminator: ${String(instance[discriminatorKey])}`);
+      throw new Error(`Invalid discriminator request for ${localInfo.container.getName()}, discriminator: ${String(instanceLike[discriminatorKey])}`);
     }
     return discriminatorSchemaContainer.localInfo;
   }
