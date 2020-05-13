@@ -195,7 +195,7 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
           case 'versionKey':
             const value = this.modifiedSchemaOptions[k] as string;
             if (!this.columns.has(value)) {
-              const metadata = new GtColumnMetadata(value, {}, true);
+              const metadata = new GtColumnMetadata(value, k === 'discriminatorKey' ? { type: () => String } : { type: () => Number }, true);
               metadata.resolveType(this.target.prototype);
               this.applyColumn(metadata);
             }
@@ -204,7 +204,7 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
             const { createdAt, updatedAt } = this.modifiedSchemaOptions[k] as mongoose.SchemaTimestampsConfig;
             for (const key of [createdAt, updatedAt] as string[]) {
               if (key && !this.columns.has(key)) {
-                const metadata = new GtColumnMetadata(key, {});
+                const metadata = new GtColumnMetadata(key, { type: () => Date });
                 metadata.resolveType(this.target.prototype);
                 this.applyColumn(metadata);
               }
