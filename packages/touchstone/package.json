@@ -1,0 +1,54 @@
+{
+  "name": "@pebula/touchstone",
+  "version": "0.0.1",
+  "main": "cjs/index.js",
+  "types": "cjs/index-public.d.ts",
+  "files": [
+    "cjs",
+    "src"
+  ],
+  "scripts": {
+    "clean": "rimraf ./cjs",
+    "prebuild": "yarn clean",
+    "build": "tsc -p tsconfig.json",
+    "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
+    "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
+    "build:ci": "yarn typecheck && yarn test && yarn build:lib",
+    "lint": "eslint --fix './src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "test": "jest",
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
+  },
+  "devDependencies": {
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.13.4",
+    "jest": "^25.4.0",
+    "ts-jest": "^25.4.0",
+    "typescript": "~3.7.5",
+    "utility-types": "^3.10.0"
+  },
+  "peerDependencies": {
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.1.13"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "__execPluginConfig": {
+    "isLib": true,
+    "ghTypeDoc": true,
+    "ghDocusaurus": "website",
+    "apiExtractor": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shlomiassaf/pebula-node.git"
+  },
+  "author": "Shlomi Assaf",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shlomiassaf/pebula-node/issues"
+  },
+  "homepage": "https://github.com/shlomiassaf/pebula-node/tree/master/packages/touchstone"
+}
