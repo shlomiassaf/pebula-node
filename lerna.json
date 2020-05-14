@@ -4,5 +4,11 @@
   ],
   "npmClient": "yarn",
   "version": "independent",
-  "useWorkspaces": true
+  "useWorkspaces": true,
+  "command": {
+      "publish": {
+          "conventionalCommits": true
+      }
+  },
+  "ignoreChanges": ["**/tests/**", "**/*.spec.ts", "**/website/**", "**/*.md"]
 }
