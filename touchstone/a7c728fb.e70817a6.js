@@ -1,0 +1,1 @@
+(window.webpackJsonp=window.webpackJsonp||[]).push([[19],{119:function(o){o.exports=JSON.parse('{"allTagsPath":"/pebula-node/touchstone/blog/tags","slug":"hola","name":"hola","count":1,"permalink":"/pebula-node/touchstone/blog/tags/hola"}')}}]);

@@ -1,0 +1,402 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>@pebula/nesbus</title>
+	<meta name="description" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.js" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">@pebula/nesbus</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="globals.html">Globals</a>
+				</li>
+			</ul>
+			<h1>@pebula/nesbus</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<a href="#pebulanesbus" id="pebulanesbus" style="color: inherit; text-decoration: none;">
+					<h1><code>@pebula/nesbus</code></h1>
+				</a>
+				<p><a href="https://shlomiassaf.github.io/pebula-node/nesbus/docs/getting-started/introduction/"><img src="https://img.shields.io/badge/Documentation-9cf?style=for-the-badge" alt="Documentation"></a>   <img src="https://img.shields.io/npm/v/@pebula/nesbus?color=green&style=for-the-badge" alt="npm (scoped)"></p>
+				<p><strong>NesBus</strong> (Nest / Service Bus) is a microservice extension for <strong>NestJS</strong> that adds support for Azure Service Bus within <strong>NestJS</strong> in a
+				simple and intuitive way.</p>
+				<p>It simplifies how we use and manage service bus through an declarative API that automate message handling &amp; emitter registration:</p>
+				<a href="#message-handling" id="message-handling" style="color: inherit; text-decoration: none;">
+					<h3>Message Handling</h3>
+				</a>
+				<p>Handling incoming service bus message is now as easy as handling incoming REST requests.</p>
+				<pre><code class="language-typescript"><span class="hljs-meta">@Controller</span>()
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> ServiceBusController {
+  <span class="hljs-meta">@Queue</span>&lt;MethodDecorator&gt;(({
+    name: <span class="hljs-string">'nesbus-queue.demo'</span>
+  })
+  <span class="hljs-keyword">async</span> myQueueEntity(<span class="hljs-meta">@Ctx</span>() context: SbContext) {
+  }
+}</code></pre>
+				<a href="#client-emitters" id="client-emitters" style="color: inherit; text-decoration: none;">
+					<h3>Client Emitters</h3>
+				</a>
+				<p>Defining service bus emitters (<code>Sender</code>) requires no logic, you can compose a client emitter in seconds:</p>
+				<pre><code class="language-typescript"><span class="hljs-meta">@Injectable</span>()
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> ServiceBusEmitClient {
+
+  <span class="hljs-meta">@QueueEmitter</span>({
+    name: <span class="hljs-string">'nesbus-queue.demo'</span>
+  })
+  myQueueEntity: Sender;
+}</code></pre>
+				<a href="#easy-setup" id="easy-setup" style="color: inherit; text-decoration: none;">
+					<h3>Easy Setup</h3>
+				</a>
+				<p>The library also helps with service bus entity management through a declarative API for automatic creation
+				of service bus entities based on the entities we define in the controllers / services in our application.</p>
+				<p>We call it <strong>provision</strong>.</p>
+				<p>This allows a <strong>code-first</strong> approach for service bus management and architecture.</p>
+				<a href="#leverage-advanced-architecture-patterns" id="leverage-advanced-architecture-patterns" style="color: inherit; text-decoration: none;">
+					<h3>Leverage Advanced Architecture Patterns</h3>
+				</a>
+				<p>By simplifying the work with service bus, <strong>Nesbus</strong> enables the use of more advanced architecture patterns that you
+				can use to manage the flow of your application.</p>
+				<p>Using <strong>Observables</strong> you can now implement a <strong>CQRS</strong> or <strong>Event Sourcing</strong> models out of the box.
+				In addition, <strong>Observables</strong> along with <strong>Interceptors</strong> allow us to use plugins that encapsulate behaviors for us.</p>
+				<p>For example, the <strong>SbBackoffRetry plugin</strong> wraps incoming service bus messages and handles them when their handler throws.
+					It will perform a retry to handle them again but with a delay between each try. The delay is not constant and it is based on an algorithm (linear / exponential)
+				so the effect of periodic stress on you server is reduced.</p>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="globals.html"><em>Globals</em></a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-class">
+						<a href="classes/sbchannelmanager.html" class="tsd-kind-icon">Sb<wbr>Channel<wbr>Manager</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbclient.html" class="tsd-kind-icon">Sb<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbconfigurator.html" class="tsd-kind-icon">Sb<wbr>Configurator</a>
+					</li>
+					<li class=" tsd-kind-class tsd-has-type-parameter">
+						<a href="classes/sbcontext.html" class="tsd-kind-icon">Sb<wbr>Context</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbdiscoveryfactoryservice.html" class="tsd-kind-icon">Sb<wbr>Discovery<wbr>Factory<wbr>Service</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbdiscoverymetadataexplorer.html" class="tsd-kind-icon">Sb<wbr>Discovery<wbr>Metadata<wbr>Explorer</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbdiscoveryservice.html" class="tsd-kind-icon">Sb<wbr>Discovery<wbr>Service</a>
+					</li>
+					<li class=" tsd-kind-class tsd-has-type-parameter">
+						<a href="classes/sbemittermetadata.html" class="tsd-kind-icon">Sb<wbr>Emitter<wbr>Metadata</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbresourcegroup.html" class="tsd-kind-icon">Sb<wbr>Resource<wbr>Group</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbserver.html" class="tsd-kind-icon">Sb<wbr>Server</a>
+					</li>
+					<li class=" tsd-kind-class tsd-has-type-parameter">
+						<a href="classes/sbsubscribermetadata.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Metadata</a>
+					</li>
+					<li class=" tsd-kind-class tsd-has-type-parameter">
+						<a href="classes/sbsubscriberroutehandler.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Route<wbr>Handler</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/sbsubscriberrouter.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Router</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/servicebusmodule.html" class="tsd-kind-icon">Service<wbr>Bus<wbr>Module</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/correlationfilter.html" class="tsd-kind-icon">Correlation<wbr>Filter</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/routetocommit.html" class="tsd-kind-icon">Route<wbr>ToCommit</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbclientoptions.html" class="tsd-kind-icon">Sb<wbr>Client<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/sbconnectionoptions.html" class="tsd-kind-icon">Sb<wbr>Connection<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbemitterimp.html" class="tsd-kind-icon">Sb<wbr>Emitter<wbr>Imp</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbemittermetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Emitter<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbemittertypemap.html" class="tsd-kind-icon">Sb<wbr>Emitter<wbr>Type<wbr>Map</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/sbentityprovision.html" class="tsd-kind-icon">Sb<wbr>Entity<wbr>Provision</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/sbinterceptor.html" class="tsd-kind-icon">Sb<wbr>Interceptor</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbmanagementclientadapter.html" class="tsd-kind-icon">Sb<wbr>Management<wbr>Client<wbr>Adapter</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbmanagementclientatomoptions.html" class="tsd-kind-icon">Sb<wbr>Management<wbr>Client<wbr>Atom<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbmanagementclientoptions.html" class="tsd-kind-icon">Sb<wbr>Management<wbr>Client<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbmanagementdefaultsadapter.html" class="tsd-kind-icon">Sb<wbr>Management<wbr>Defaults<wbr>Adapter</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbmoduleregisteroptions.html" class="tsd-kind-icon">Sb<wbr>Module<wbr>Register<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbqueueemittermetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Queue<wbr>Emitter<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbqueueentityprovision.html" class="tsd-kind-icon">Sb<wbr>Queue<wbr>Entity<wbr>Provision</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbqueuemetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Queue<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbruleentityprovision.html" class="tsd-kind-icon">Sb<wbr>Rule<wbr>Entity<wbr>Provision</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbserveroptions.html" class="tsd-kind-icon">Sb<wbr>Server<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbsubscribermetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbsubscriberroutingcontext.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Routing<wbr>Context</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbsubscriberroutingcontextfactory.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Routing<wbr>Context<wbr>Factory</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbsubscribertypemap.html" class="tsd-kind-icon">Sb<wbr>Subscriber<wbr>Type<wbr>Map</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbsubscriptionmetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Subscription<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbtopicentityprovision.html" class="tsd-kind-icon">Sb<wbr>Topic<wbr>Entity<wbr>Provision</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbtopicmetadataoptions.html" class="tsd-kind-icon">Sb<wbr>Topic<wbr>Metadata<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/sbtopicsubscriptionentityprovision.html" class="tsd-kind-icon">Sb<wbr>Topic<wbr>Subscription<wbr>Entity<wbr>Provision</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/servicebusaadtokencredentials.html" class="tsd-kind-icon">Service<wbr>Bus<wbr>Aad<wbr>Token<wbr>Credentials</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/servicebusconnectionstringcredentials.html" class="tsd-kind-icon">Service<wbr>Bus<wbr>Connection<wbr>String<wbr>Credentials</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/servicebusmanagementaadtokencredentials.html" class="tsd-kind-icon">Service<wbr>Bus<wbr>Management<wbr>Aad<wbr>Token<wbr>Credentials</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/servicebustokenprovidercredentials.html" class="tsd-kind-icon">Service<wbr>Bus<wbr>Token<wbr>Provider<wbr>Credentials</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#emittermetadatafortarget" class="tsd-kind-icon">Emitter<wbr>Metadata<wbr>For<wbr>Target</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#metaormetafactory" class="tsd-kind-icon">Meta<wbr>OrMeta<wbr>Factory</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#propormethoddecorator" class="tsd-kind-icon">Prop<wbr>OrMethod<wbr>Decorator</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#sbcontextargs" class="tsd-kind-icon">Sb<wbr>Context<wbr>Args</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbcorrelationfilter" class="tsd-kind-icon">Sb<wbr>Correlation<wbr>Filter</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbcredentials" class="tsd-kind-icon">Sb<wbr>Credentials</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbemitterref" class="tsd-kind-icon">Sb<wbr>Emitter<wbr>Ref</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#sbentityprovisionoption" class="tsd-kind-icon">Sb<wbr>Entity<wbr>Provision<wbr>Option</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbinterceptormetadatafortarget" class="tsd-kind-icon">Sb<wbr>Interceptor<wbr>Metadata<wbr>For<wbr>Target</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#sblinkedentityprovisionoption" class="tsd-kind-icon">Sb<wbr>Linked<wbr>Entity<wbr>Provision<wbr>Option</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbmessageemitter" class="tsd-kind-icon">Sb<wbr>Message<wbr>Emitter</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbqueue" class="tsd-kind-icon">Sb<wbr>Queue</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbrule" class="tsd-kind-icon">Sb<wbr>Rule</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbsqlfilter" class="tsd-kind-icon">Sb<wbr>Sql<wbr>Filter</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbsubscription" class="tsd-kind-icon">Sb<wbr>Subscription</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sbtopic" class="tsd-kind-icon">Sb<wbr>Topic</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#sgentityprovisiontype" class="tsd-kind-icon">Sg<wbr>Entity<wbr>Provision<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#subscribermetadatafortarget" class="tsd-kind-icon">Subscriber<wbr>Metadata<wbr>For<wbr>Target</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#queueemitter" class="tsd-kind-icon">Queue<wbr>Emitter</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#topic" class="tsd-kind-icon">Topic</a>
+					</li>
+					<li class=" tsd-kind-function tsd-has-type-parameter">
+						<a href="globals.html#queue" class="tsd-kind-icon">Queue</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#sbintercept" class="tsd-kind-icon">Sb<wbr>Intercept</a>
+					</li>
+					<li class=" tsd-kind-function tsd-has-type-parameter">
+						<a href="globals.html#subscription" class="tsd-kind-icon">Subscription</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#createsbserver" class="tsd-kind-icon">create<wbr>SbServer</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-module"><span class="tsd-kind-icon">Module</span></li>
+				<li class="tsd-kind-object-literal"><span class="tsd-kind-icon">Object literal</span></li>
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
+				<li class="tsd-kind-index-signature"><span class="tsd-kind-icon">Index signature</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-enum-member"><span class="tsd-kind-icon">Enumeration member</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-enum"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-enum"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+				<li class="tsd-kind-interface tsd-has-type-parameter"><span class="tsd-kind-icon">Interface with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-interface"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-class"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+				<li class="tsd-kind-call-signature tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+<script>if (location.protocol == 'file:') document.write('<script src="assets/js/search.js"><' + '/script>');</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+(window.webpackJsonp=window.webpackJsonp||[]).push([[29],{131:function(o){o.exports=JSON.parse('{"allTagsPath":"/pebula-node/goosetyped/blog/tags","slug":"facebook","name":"facebook","count":1,"permalink":"/pebula-node/goosetyped/blog/tags/facebook"}')}}]);

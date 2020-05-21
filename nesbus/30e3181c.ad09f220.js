@@ -1,0 +1,1 @@
+(window.webpackJsonp=window.webpackJsonp||[]).push([[10],{113:function(a){a.exports=JSON.parse('{"allTagsPath":"/pebula-node/nesbus/blog/tags","slug":"hola","name":"hola","count":1,"permalink":"/pebula-node/nesbus/blog/tags/hola"}')}}]);
