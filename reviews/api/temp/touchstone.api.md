@@ -96,7 +96,10 @@ export function Mixin<T1, C1, T2, C2, T3, C3, T4, C4>(m1: C1 & Cls<T1>, m2: C2 &
 export function Mixin<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Cls<T1>, m2: C2 & Cls<T2>, m3: C3 & Cls<T3>, m4: C4 & Cls<T4>, m5: C5 & Cls<T5>): Ctor<T1 & T2 & T3 & T4 & T5> & C1 & C2 & C3 & C4 & C5;
 
 // @public (undocumented)
-export function Mixin<TMIXIN, CMIXIN>(...mixins: Array<CMIXIN & Cls<TMIXIN>>): Ctor<TMIXIN> & CMIXIN;
+export function Mixin<T1, C1, T2, C2, T3, C3, T4, C4, T5, C5>(m1: C1 & Cls<T1>, m2: C2 & Cls<T2>, m3: C3 & Cls<T3>, m4: C4 & Cls<T4>, m5: C5 & Cls<T5>, ...mn: Array<Cls<any>>): Ctor<T1 & T2 & T3 & T4 & T5> & C1 & C2 & C3 & C4 & C5;
+
+// @public (undocumented)
+export function Mixin(...mixins: Array<Cls<any>>): Ctor<any>;
 
 // @public (undocumented)
 export interface NoopMetadataArgs {
@@ -130,14 +133,13 @@ export const OnTouchStoneStart: (metadata?: NoopMetadataArgs) => MethodDecorator
 export type Orientation = 'vertical' | 'horizontal';
 
 // @public (undocumented)
-export function run(): Promise<unknown>;
-
-// @public (undocumented)
 export abstract class SimpleConsoleReporter {
     // (undocumented)
     onSimpleConsoleReporterComplete(event: SuiteCompleteEvent): void;
     // (undocumented)
     onSimpleConsoleReporterCycle(event: CaseCompleteEvent): void;
+    // (undocumented)
+    onSimpleConsoleReporterError(event: SuiteErrorEvent): void;
     // (undocumented)
     onSimpleConsoleReporterFinalize(event: TouchStoneEndEvent): void;
     // (undocumented)
@@ -161,6 +163,8 @@ export interface SuiteCompleteEvent extends BaseEvent<'complete'> {
 
 // @public (undocumented)
 export interface SuiteErrorEvent extends BaseEvent<'error'> {
+    // (undocumented)
+    error: Error;
 }
 
 // @public (undocumented)
@@ -192,6 +196,9 @@ export const TouchStone: (metadata?: TouchStoneMetadataArgs) => ClassDecoratorOf
 }, unknown>;
 
 // @public (undocumented)
+export function touchStone(): Promise<unknown>;
+
+// @public (undocumented)
 export interface TouchStoneEndEvent {
     // (undocumented)
     results: SuiteResult[];
@@ -201,7 +208,7 @@ export interface TouchStoneEndEvent {
 
 // @public (undocumented)
 export interface TouchStoneMetadataArgs {
-    benchmarkOptions?: BenchmarkOptions;
+    manualRun?: boolean;
     name?: string;
 }
 

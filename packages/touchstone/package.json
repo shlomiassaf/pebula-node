@@ -14,10 +14,12 @@
     "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
     "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
     "build:ci": "yarn typecheck && yarn test && yarn build:lib",
+    "build:ghPages": "yarn build:lib && yarn build:docs && yarn demo",
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",
-    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
+    "demo": "ts-node ./demo/src/run.ts"
   },
   "devDependencies": {
     "@types/benchmark": "^1.0.32",
@@ -54,5 +56,12 @@
   "bugs": {
     "url": "https://github.com/shlomiassaf/pebula-node/issues"
   },
-  "homepage": "https://github.com/shlomiassaf/pebula-node/tree/master/packages/touchstone"
+  "homepage": "https://github.com/shlomiassaf/pebula-node/tree/master/packages/touchstone",
+  "keywords": [
+    "benchmark",
+    "benchmark.js",
+    "performance",
+    "framework",
+    "typescript"
+  ]
 }

@@ -29,6 +29,6 @@ export {
   SuiteErrorEvent,
   SuiteResetEvent,
   TouchStoneStartEvent, TouchStoneEndEvent,
-  run
+  touchStone
 } from './runner';
 

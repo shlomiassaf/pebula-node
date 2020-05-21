@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
     "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
+    "build:ghPages": "yarn build:lib && yarn build:docs",
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test:local": "jest",

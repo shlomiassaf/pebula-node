@@ -1,5 +1,5 @@
-import { OnStart, OnCaseComplete, OnComplete, OnTouchStoneEnd } from '../decorators';
-import { SuiteStartEvent, CaseCompleteEvent, SuiteCompleteEvent, TouchStoneEndEvent } from '../runner/events';
+import { OnStart, OnCaseComplete, OnComplete, OnTouchStoneEnd, OnError } from '../decorators';
+import { SuiteStartEvent, CaseCompleteEvent, SuiteErrorEvent, SuiteCompleteEvent, TouchStoneEndEvent } from '../runner/events';
 
 export abstract class SimpleConsoleReporter {
 
@@ -14,6 +14,11 @@ export abstract class SimpleConsoleReporter {
   @OnCaseComplete()
   onSimpleConsoleReporterCycle(event: CaseCompleteEvent) {
     console.log(String(event.rawEvent.target));
+  }
+
+  @OnError()
+  onSimpleConsoleReporterError(event: SuiteErrorEvent) {
+    console.error(event.error);
   }
 
   @OnComplete()

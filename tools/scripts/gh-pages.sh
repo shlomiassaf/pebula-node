@@ -4,8 +4,7 @@ GH_PAGES_BUILD=1
 export GH_PAGES_BUILD
 
 rm -rf .gh-pages-build
-yarn build:libs
-yarn build:docs
+yarn build:ghPages
 cd .gh-pages-build
 
 git init

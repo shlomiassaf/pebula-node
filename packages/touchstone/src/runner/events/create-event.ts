@@ -50,6 +50,7 @@ export function createEvent(rawEvent: benchmark.Event, suite: benchmark.Suite, c
       return {
         type: 'error',
         ...base,
+        error: base.rawEvent.target['error'],
       } as SuiteErrorEvent;
   }
   throw new Error(`Unknown Event ${event.type}`);

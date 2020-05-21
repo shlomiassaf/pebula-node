@@ -39,7 +39,14 @@ function runSuites(context: TsGlobalContext,
   }
 }
 
-export async function run() {
+let IS_RUNNING = false;
+export async function touchStone() {
+  if (IS_RUNNING) {
+    throw new Error('TouchStone is already running...');
+  } else {
+    IS_RUNNING = true;
+  }
+
   const context = new TsGlobalContext(decoratorStore.getTargets());
   const { runner } = context;
 
@@ -55,8 +62,17 @@ export async function run() {
     runSuites(
       context,
       (errEvent?) => {
+        const beforeResolve = (err?: any) => {
+          IS_RUNNING = false;
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        };
+    
         if (errEvent) {
-          reject(errEvent.target['error']);
+          beforeResolve(errEvent.target['error']);
         } else {
           if (runner.def.lifeCycle.touchStoneEnd) {
             const touchStoneEnd: TouchStoneEndEvent = { type: 'touchStoneEnd', results: context.getResults() };
@@ -65,8 +81,10 @@ export async function run() {
 
             Promise
               .all(promises)
-              .then(() => { resolve(); })
-              .catch( err => reject(err) );
+              .then(() => beforeResolve() )
+              .catch(beforeResolve);
+          } else {
+            beforeResolve();
           }
         }
       });

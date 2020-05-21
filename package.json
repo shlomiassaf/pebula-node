@@ -5,6 +5,7 @@
     "clean": "lerna run clean --stream --parallel",
     "build:libs": "lerna run build:lib --stream --parallel",
     "build:docs": "lerna run build:docs --stream --parallel",
+    "build:ghPages": "lerna run build:ghPages --stream --parallel",
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",

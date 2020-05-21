@@ -1,5 +1,5 @@
 import * as benchmark from 'benchmark';
-import { Suite, InternalTsRunOptions, TouchStone } from '../decorators';
+import { Suite, InternalTsRunOptions, TouchStone, TouchStoneRun } from '../decorators';
 import { SuiteDefinitions } from '../store/suite-definition';
 import { RunDefinitions } from '../store/run-definition';
 import { createEvent } from '../runner/events/create-event';
@@ -30,10 +30,7 @@ export class TsGlobalContext {
       }
     }
 
-    this.runner = {
-      def: runDefs[0],
-      instance: new runDefs[0].run.cls(),
-    };
+    this.runner = this.createRunContainer(runDefs);
     this.options = processTsRunOptions(this.runner.instance);
 
     this.total = this.suiteDefs.length;
@@ -79,5 +76,24 @@ export class TsGlobalContext {
     } else {
       return Array.from(this.targets.get(suite).values());
     }
+  }
+
+  private createRunContainer(runDefs: RunDefinitions[]) {
+    if (runDefs.length === 0) {
+      class DefaultTouchStoneRunner implements TouchStoneRun { }
+      runDefs.push({
+        target: DefaultTouchStoneRunner,
+        run: {
+          cls: DefaultTouchStoneRunner,
+          metadata: {},
+        },
+        lifeCycle: {},
+      });
+    }
+
+    return {
+      def: runDefs[0],
+      instance: new runDefs[0].run.cls(),
+    };
   }
 }
