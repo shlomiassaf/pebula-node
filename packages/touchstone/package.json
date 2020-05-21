@@ -20,22 +20,26 @@
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
   },
   "devDependencies": {
+    "@types/benchmark": "^1.0.32",
     "@types/jest": "^25.2.1",
     "@types/node": "^13.13.4",
+    "canvas": "^2.6.1",
     "jest": "^25.4.0",
     "ts-jest": "^25.4.0",
     "typescript": "~3.7.5",
     "utility-types": "^3.10.0"
   },
-  "peerDependencies": {
-  },
+  "peerDependencies": {},
   "dependencies": {
-    "reflect-metadata": "^0.1.13"
+    "benchmark": "^2.1.4",
+    "reflect-metadata": "^0.1.13",
+    "vega": "^5.12.0",
+    "vega-lite": "^4.12.1"
   },
   "publishConfig": {
     "access": "public"
   },
-  "__execPluginConfig": {
+  "execPluginConfig": {
     "isLib": true,
     "ghTypeDoc": true,
     "ghDocusaurus": "website",
