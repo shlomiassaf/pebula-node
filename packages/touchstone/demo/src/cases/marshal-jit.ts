@@ -1,5 +1,5 @@
 import { Case } from '@pebula/touchstone';
-import { f, PropertyValidator, PropertyValidatorError, validate } from '@marcj/marshal';
+import { f, PropertyValidator, PropertyValidatorError, jitValidate } from '@marcj/marshal';
 import { PackageCase, RuntimeValidatorPackageSuite } from './case';
 import { Data } from '../data';
 
@@ -64,12 +64,14 @@ class DataType implements Data {
   deeplyNested!: DeeplyNestedType;
 }
 
-@RuntimeValidatorPackageSuite()
-export class MarshalPkg extends PackageCase {
+const DataTypeValidation = jitValidate(DataType);
 
-  @Case({ name: 'marshal' }) 
+@RuntimeValidatorPackageSuite()
+export class MarshalJitPkg extends PackageCase {
+
+  @Case({ name: 'marshal-jit' }) 
   validate() {
-    validate(DataType, this.data);
+    DataTypeValidation(this.data);
     return this.data;
   }
 }

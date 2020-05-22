@@ -7,6 +7,7 @@ export * from './io-ts';
 export * from './jointz';
 export * from './json-decoder';
 export * from './marshal';
+export * from './marshal-jit';
 export * from './myzod';
 export * from './purify-ts';
 export * from './quartet';
