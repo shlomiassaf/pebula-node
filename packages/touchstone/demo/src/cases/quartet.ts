@@ -8,7 +8,7 @@ const checkData = v<Data>({
   negNumber: v.negative,
   maxNumber: v.positive,
   string: v.string,
-  longString: v.string,
+  longString: v.and(v.string, v.minLength(100)),
   boolean: v.boolean,
   deeplyNested: {
     foo: v.string,
