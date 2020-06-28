@@ -1,0 +1,6 @@
+{
+  "name": "@pebula/attribus_tasks",
+  "main": "../cjs/tasks/index.js",
+  "types": "../cjs/tasks/index.d.ts",
+  "private": true
+}

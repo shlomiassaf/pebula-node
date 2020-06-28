@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig",
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "cjs",
+    "declarationMap": true,
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "include": [ "src", "index.ts", "tasks", "arm-adapter", "nestjs" ],
+  "exclude": [ "tests", "**/*spec.ts"]
+}

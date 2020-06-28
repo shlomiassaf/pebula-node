@@ -1,0 +1,82 @@
+{
+  "name": "@pebula/attribus",
+  "version": "0.0.1",
+  "main": "cjs/index.js",
+  "types": "cjs/index.d.ts",
+  "files": [
+    "cjs",
+    "src",
+    "arm-adapter",
+    "tasks",
+    "nestjs"
+  ],
+  "scripts": {
+    "clean": "rimraf ./cjs",
+    "prebuild": "yarn clean",
+    "build": "tsc -p tsconfig.json",
+    "build:lib": "node ../../tools/exec --plugins isLib,apiExtractor",
+    "build:docs": "node ../../tools/exec --plugins ghDocusaurus,ghTypeDoc",
+    "build:ghPages": "yarn build:lib && yarn build:docs",
+    "lint": "eslint --fix './src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "test": "jest",
+    "test:attribus": "cross-env ATTRIBUS_TEST=attribus jest",
+    "test:nest": "cross-env ATTRIBUS_TEST=nest jest",
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
+  },
+  "devDependencies": {
+    "@azure/arm-servicebus": "^3.2.0",
+    "@azure/core-http": "^1.0.0",
+    "@azure/ms-rest-nodeauth": "^3.0.3",
+    "@azure/service-bus": "^1.1.7",
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.13.4",
+    "cross-env": "^7.0.2",
+    "jest": "^25.4.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^6.0.0",
+    "ts-jest": "^25.4.0",
+    "typescript": "~3.7.5",
+    "utility-types": "^3.10.0"
+  },
+  "peerDependencies": {
+    "@azure/arm-servicebus": "^3.2.0",
+    "@azure/core-http": "^1.0.0",
+    "@azure/service-bus": "^1.1.7",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "execPluginConfig": {
+    "isLib": true,
+    "ghTypeDoc": true,
+    "ghDocusaurus": "website",
+    "apiExtractor": {
+      "dtsRollup": {
+        "enabled": true,
+        "untrimmedFilePath": "<projectFolder>/cjs/index-public.d.ts",
+        "publicTrimmedFilePath": ""
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shlomiassaf/pebula-node.git"
+  },
+  "author": "Shlomi Assaf",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shlomiassaf/pebula-node/issues"
+  },
+  "homepage": "https://github.com/shlomiassaf/pebula-node/tree/master/packages/attribus",
+  "keywords": [
+    "azure",
+    "cloud",
+    "service bus",
+    "AMQP",
+    "microservice"
+  ],
+  "gitHead": "97bd6b3c99c320163a38115fca4b276c5fdcceeb"
+}

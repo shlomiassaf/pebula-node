@@ -1,0 +1,6 @@
+{
+  "name": "@pebula/attribus_nestjs",
+  "main": "../cjs/nestjs/index.js",
+  "types": "../cjs/nestjs/index.d.ts",
+  "private": true
+}
