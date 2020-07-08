@@ -12,7 +12,8 @@ export class SbServerDiscoveryService {
 
   private legacyHandlers: Map<SbSubscriberMetadata, MessageHandler>;
 
-  constructor(private readonly serverOptions: SbServerOptions[], private readonly metadataHelper?: any) {  }
+  constructor(private readonly serverOptions: SbServerOptions[],
+              private readonly metadataHelper?: any,) {  }
 
   create() {
     for (const options of this.serverOptions) {

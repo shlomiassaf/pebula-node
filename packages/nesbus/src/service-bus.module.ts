@@ -2,6 +2,8 @@ import { Module, OnModuleInit, Optional, Inject, DynamicModule, Provider, Type, 
 import { SB_CLIENT_OPTIONS, SB_SERVER_OPTIONS, SB_META_HELPER_FACTORY_TOKEN } from './constants';
 import { SbServerOptions, SbModuleRegisterOptions, SbClientOptions } from './interfaces';
 import { SbDiscoveryFactoryService, SbDiscoveryService } from './discovery';
+import { SbErrorHandler } from './error-handling';
+import { sbResourceManager } from './resource-manager';
 
 function normalizeProvider(provider: Omit<Exclude<Provider, Type<any>>, 'provide'> | Type<any>): Provider {
   if (typeof provider === 'function') {
@@ -68,11 +70,16 @@ export class ServiceBusModule implements OnModuleInit, OnModuleDestroy {
   private discovery: SbDiscoveryService;
 
   constructor(discoveryFactory: SbDiscoveryFactoryService,
+              @Optional() errorHandler?: SbErrorHandler,
               @Optional() @Inject(SB_META_HELPER_FACTORY_TOKEN) metadataHelper?: any,
               @Optional() @Inject(SB_CLIENT_OPTIONS) clientOptions?: SbClientOptions[],
               @Optional() @Inject(SB_SERVER_OPTIONS) serverOptions?: SbServerOptions[]) {
     if (!Array.isArray(serverOptions) || serverOptions.length === 0) {
       throw new Error('You must define at least 1 server, did you use `ServiceBusModule.register()` ?');
+    }
+
+    if (errorHandler) {
+      sbResourceManager.errorHandler = errorHandler;
     }
 
     this.discovery = discoveryFactory.create(

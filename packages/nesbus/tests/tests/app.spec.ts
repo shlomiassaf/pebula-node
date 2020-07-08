@@ -2,11 +2,29 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Sender } from '@azure/service-bus';
 import { INestApplication, INestMicroservice, Controller, Injectable } from '@nestjs/common';
-import { Queue, Subscription, Ctx, SbContext, QueueEmitter, Topic, SbIntercept } from '@pebula/nesbus';
+import { Queue, Subscription, Ctx, SbContext, QueueEmitter, Topic, SbIntercept, SbErrorHandler, SbErrorEvent, SbMessageErrorEvent } from '@pebula/nesbus';
 import { SbBackoffRetry } from '@pebula/nesbus/tasks';
 
 import { MessageStorage, SUBSCRIBERS, EMITTERS } from '../server';
 import { TestMessage, TestModuleFactory } from '../utils';
+
+class TestErrorHandler extends SbErrorHandler {
+  lastError: SbErrorEvent[] = [];
+  lastMessageError: SbMessageErrorEvent[] = [];
+
+  async onError(event: SbErrorEvent) {
+    this.lastError.push(event);
+  }
+
+  async onMessageError(event: SbMessageErrorEvent) {
+    this.lastMessageError.push(event);
+  }
+
+  reset() {
+    this.lastError = [];
+    this.lastMessageError = [];
+  }
+}
 
 @Controller()
 export class ServiceBusController {
@@ -72,13 +90,14 @@ describe('@pebula/nesbus', () => {
   let app: INestApplication;
   let serviceBusController: ServiceBusController;
   let serviceBusEmitClient: ServiceBusEmitClient;
+  let errorHandler: TestErrorHandler;
   let msgStore: MessageStorage;
 
   beforeAll(async () => {
     jest.setTimeout(10000 * 30);
 
     app = await TestModuleFactory.create()
-      .addServiceBusModule()
+      .addServiceBusModule({ provide: SbErrorHandler, useClass: TestErrorHandler })
       .addMetadata({
         controllers: [
           ServiceBusController,
@@ -89,8 +108,9 @@ describe('@pebula/nesbus', () => {
         ],
       })
       .compile()
-      .init(4000);
+      .init(4001);
 
+    errorHandler = app.get(SbErrorHandler);
     msgStore = app.get(MessageStorage);
     serviceBusController = app.get(ServiceBusController);
     serviceBusEmitClient = app.get(ServiceBusEmitClient);
@@ -128,7 +148,7 @@ describe('@pebula/nesbus', () => {
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
 
-  it.only('should activate backoff', async () => {
+  it('should activate backoff', async () => {
     const testMessage = TestMessage.getSample();
     await serviceBusEmitClient.testQueue3.send(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(4, 1000 * 60);

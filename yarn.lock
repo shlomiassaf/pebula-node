@@ -18,10 +18,10 @@
   dependencies:
     tslib "^1.9.3"
 
-"@azure/amqp-common@1.0.0-preview.13":
-  version "1.0.0-preview.13"
-  resolved "https://registry.yarnpkg.com/@azure/amqp-common/-/amqp-common-1.0.0-preview.13.tgz#1517885966366514cad619e3d6f51b702f7045c4"
-  integrity sha512-v19NGXFm8Hzr2bj/DSWYc2anaDcoAeFQXJGuBT8QO7eS13vaELQNGaynOGipEcI313A1778R/FFCk4o+dylIiw==
+"@azure/amqp-common@1.0.0-preview.15":
+  version "1.0.0-preview.15"
+  resolved "https://registry.yarnpkg.com/@azure/amqp-common/-/amqp-common-1.0.0-preview.15.tgz#dd3a1ed225d66ba48af9cd01d416e6d526023777"
+  integrity sha512-EoxNsVR7yLioNKRz5JBwQAE9pEdPVGCmmQbPKkZHP72vE5NhaLnOwHOCrk/311cuhJ8aQ60eiLUtF9J2XrEZyA==
   dependencies:
     "@types/async-lock" "^1.1.0"
     "@types/is-buffer" "^2.0.0"
@@ -148,12 +148,12 @@
     "@azure/ms-rest-js" "^2.0.4"
     adal-node "^0.1.28"
 
-"@azure/service-bus@^1.1.6":
-  version "1.1.6"
-  resolved "https://registry.yarnpkg.com/@azure/service-bus/-/service-bus-1.1.6.tgz#a5449d2c0a5127e3ff3d3695a201e5b86d185655"
-  integrity sha512-eCJXcJZGWdlVwLEqMcoIqtUrh/NtyFcDDfq/y8gdCOy3Dzuv8JkPTxjdjcxDthwG9mc5Qter3dGOTwh0U8gwiw==
+"@azure/service-bus@^1.1.7":
+  version "1.1.7"
+  resolved "https://registry.yarnpkg.com/@azure/service-bus/-/service-bus-1.1.7.tgz#b8d50489c666506edbe1b2b97a6474ef297b65cf"
+  integrity sha512-wns3egBrP6UyT9CIPkM66KsOVJwit7VJT0P/t8PPPfUaO6yx3bEeZyVDq6WMiibnbIkgHtW85xXml4WDb+nPMw==
   dependencies:
-    "@azure/amqp-common" "1.0.0-preview.13"
+    "@azure/amqp-common" "1.0.0-preview.15"
     "@azure/core-http" "^1.0.0"
     "@opentelemetry/types" "^0.2.0"
     "@types/is-buffer" "^2.0.0"
@@ -163,7 +163,7 @@
     is-buffer "^2.0.3"
     long "^4.0.0"
     process "^0.11.10"
-    rhea "^1.0.18"
+    rhea "^1.0.21"
     rhea-promise "^0.1.15"
     tslib "^1.10.0"
 
@@ -13076,6 +13076,13 @@ rhea@^1.0.18, rhea@^1.0.4:
   version "1.0.20"
   resolved "https://registry.yarnpkg.com/rhea/-/rhea-1.0.20.tgz#f033929a0d610ac2aef5632524ad3054fd919f60"
   integrity sha512-qj4LSEykJ0SEYESQLg9Vee6VXH5xHN1pYj7ozPeUk+l+S1OaGKx1FugAu+g+3pPwK46WXV1PJD9XiRx8+tS4cw==
+  dependencies:
+    debug "0.8.0 - 3.5.0"
+
+rhea@^1.0.21:
+  version "1.0.23"
+  resolved "https://registry.yarnpkg.com/rhea/-/rhea-1.0.23.tgz#a316887831d81dfb769af67482b9063a84f1a163"
+  integrity sha512-c6xocb+x3uqcC30WDbbIQzeLuc0KNellSNWIzjUDC1WzlM/BwWnsVukDIP89+aqJ0MYAwly/B+ozGwdrF+EBrw==
   dependencies:
     debug "0.8.0 - 3.5.0"
 

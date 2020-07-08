@@ -1,4 +1,4 @@
-import { OnMessage, OnError, MessageHandlerOptions, MessagingError, Receiver, SessionReceiver } from '@azure/service-bus';
+import { OnMessage, OnError, MessageHandlerOptions, Receiver, SessionReceiver } from '@azure/service-bus';
 
 /**
  * The async version for `Receiver.registerMessageHandler` with feedback on the connection status.
@@ -9,7 +9,7 @@ export async function registerMessageHandler(receiver: Receiver | SessionReceive
   return new Promise( (resolve, reject) => {
     let done = false;
     const onErrorRouter: OnError = err => {
-      if (done || err instanceof MessagingError) {
+      if (done) {
         onError(err);
       }
       else {

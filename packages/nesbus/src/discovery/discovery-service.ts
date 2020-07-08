@@ -15,7 +15,7 @@ export class SbDiscoveryService {
               private readonly explorer: SbDiscoveryMetadataExplorer,
               serverOptions: SbServerOptions[],
               clientOptions: SbClientOptions[],
-              metadataHelper?: any) {
+              metadataHelper?: any,) {
     this.server = new SbServerDiscoveryService(serverOptions, metadataHelper);
     this.client = new SbClientDiscoveryService(clientOptions, metadataHelper);
   }

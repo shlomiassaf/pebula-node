@@ -4,11 +4,14 @@ import { SbServerOptions, SbClientOptions, SbMessageEmitter, SbEmitterImp } from
 import { SbServer } from '../server';
 import { SbClient } from '../client';
 import { SbSubscriberMetadata } from '../metadata';
+import { SbErrorHandler, SbNoopErrorHandler } from '../error-handling';
 import { createClientConnector, createServerConnector, isSbEmitterRef } from './utils';
 import { SbResourceGroup } from './resource-group';
 import { SbChannelManager } from './channel-manager';
 
 const EMPTY_RESOURCE = new SbResourceGroup();
+
+const DEFAULT_ERROR_HANDLER = new SbNoopErrorHandler();
 
 export type ResourceType = 'client' | 'server';
 
@@ -16,10 +19,13 @@ export class SbResourceManager {
 
   static get(): SbResourceManager { return sbResourceManager || new SbResourceManager(); }
 
+  get errorHandler(): SbErrorHandler { return this._errorHandler || DEFAULT_ERROR_HANDLER; }
+  set errorHandler(value: SbErrorHandler) { this._errorHandler = value; }
+
+  private _errorHandler: SbErrorHandler;
   private defaultResourceGroup: SbResourceGroup;
   private readonly resourceGroups = new Map<string, SbResourceGroup>();
   private readonly legacyMicroserviceHandlers = new Map<SbSubscriberMetadata, MessageHandler>();
-
   private constructor() { }
 
   /**

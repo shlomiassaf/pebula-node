@@ -34,6 +34,15 @@ export interface SbServerOptions {
 
   management?: SbManagementClientOptions[keyof SbManagementClientOptions];
 
+  /**
+   * How handlers are registers in service bus.
+   * - sequence: register one after the other
+   * - parallel: register all at once
+   * 
+   * The default value is parallel
+   */
+  registerHandlers?: 'sequence' | 'parallel';
+
   logger?: LoggerService;
 }
 

@@ -5,6 +5,7 @@ import { MessageHandler } from '@nestjs/microservices';
 
 import { SbSubscriberMetadata } from '../metadata/subscriber-metadata';
 import { SbChannelManager } from '../resource-manager';
+import { SbErrorHandler } from '../error-handling';
 import { SbContext } from '../sb-context';
 import { SbSubscriberTypeMap } from './subscriber';
 
@@ -22,5 +23,5 @@ export interface SbSubscriberRoutingContextFactory {
 
 export interface SbSubscriberRoutingContext {
   channelManager: SbChannelManager;
-  onError: (error: MessagingError | Error) => void;
+  errorHandler: SbErrorHandler;
 }

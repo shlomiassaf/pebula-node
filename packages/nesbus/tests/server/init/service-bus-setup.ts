@@ -1,4 +1,4 @@
-import { ModuleMetadata } from '@nestjs/common/interfaces';
+import { ModuleMetadata, Provider } from '@nestjs/common/interfaces';
 import { ApplicationTokenCredentials } from '@azure/ms-rest-nodeauth';
 
 import { ServiceBusModule, SbServerOptions } from '@pebula/nesbus';
@@ -72,13 +72,14 @@ export function createServerOptions(config: ConfigService) {
   const sbServerOptions: SbServerOptions = {
     client: createClient(client),
     management: createManagement(management, config),
+    registerHandlers: 'sequence',
     logger: NoopLogger.shared, // createLogger('SbServer: default'),
   };
   return [ sbServerOptions ];
 }
 
-export function createServiceBusModule(moduleMetadata: ModuleMetadata = {}) {
-  const serviceBusModule = ServiceBusModule.register({
+export function createServiceBusModule(...providers: Provider[]) {
+  return ServiceBusModule.register({
     servers: {
       useFactory: createServerOptions,
       inject: [ConfigService],
@@ -88,10 +89,6 @@ export function createServiceBusModule(moduleMetadata: ModuleMetadata = {}) {
         logger: NoopLogger.shared, // createLogger('SbClient: default'),
       },
     ],
+    providers,
   });
-
-  return {
-    ...moduleMetadata,
-    imports: [ serviceBusModule, ...(moduleMetadata.imports || []) ],
-  };
 }

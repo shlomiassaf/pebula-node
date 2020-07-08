@@ -12,7 +12,9 @@ export class SbDiscoveryFactoryService {
 
   constructor(private readonly modulesContainer: ModulesContainer) { }
 
-  create(serverOptions: SbServerOptions[], clientOptions: SbClientOptions[], metadataHelper?: any): SbDiscoveryService {
+  create(serverOptions: SbServerOptions[],
+         clientOptions: SbClientOptions[],
+         metadataHelper?: any,): SbDiscoveryService {
     return new SbDiscoveryService(this.modulesContainer, this.explorer, serverOptions, clientOptions, metadataHelper);
   }
 }

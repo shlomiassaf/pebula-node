@@ -55,4 +55,6 @@ export { ServiceBusModule } from './service-bus.module';
 
 export { Ctx, Payload } from '@nestjs/microservices';
 
+export { SbErrorHandler, SbErrorEvent, SbMessageErrorEvent } from './error-handling';
+
 register();

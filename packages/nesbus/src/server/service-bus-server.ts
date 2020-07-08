@@ -22,6 +22,7 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
   private routeContext: SbSubscriberRoutingContext;
   private readonly isInit: boolean;
   private routesToCommit: Record<keyof SbSubscriberTypeMap, RouteToCommit[]> = { queue: [], subscription: [] };
+  private options: SbServerOptions;
 
   constructor(public readonly id?: string) {
     super();
@@ -35,6 +36,7 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
     if (this.isInit) {
       return;
     }
+    this.options = options;
 
     if (options.logger) {
       this.sbLogger = options.logger;
@@ -48,7 +50,7 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
 
     this.routeContext = {
       channelManager,
-      onError: error => this.logger.error(error.message, error.stack),
+      get errorHandler() { return sbResourceManager.errorHandler },
      };
 
     channelManager.resourceUpdate();
@@ -96,15 +98,24 @@ export class SbServer extends Server implements CustomTransportStrategy, SbSubsc
     const { queue, subscription } = this.routesToCommit;
     this.routesToCommit = undefined;
 
-    for (const q of queue) {
-      promises.push(executeRoute(q));
+    if (this.options.registerHandlers === 'sequence') {
+      for (const q of queue) {
+        await executeRoute(q);
+      }
+      for (const s of subscription) {
+        await executeRoute(s);
+      }
+    } else {
+      for (const q of queue) {
+        promises.push(executeRoute(q));
+      }
+  
+      for (const s of subscription) {
+        promises.push(executeRoute(s));
+      }
+  
+      await Promise.all(promises);
     }
-
-    for (const s of subscription) {
-      promises.push(executeRoute(s));
-    }
-
-    await Promise.all(promises);
   }
 
   async listen(callback: () => void) {

@@ -2,7 +2,7 @@ import { isFunction } from 'util';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createSbServer } from '@pebula/nesbus';
 
-import { ModuleMetadata } from '@nestjs/common/interfaces';
+import { ModuleMetadata, Provider } from '@nestjs/common/interfaces';
 import { NestBusSharedModule,  createServiceBusModule } from '../server';
 
 export class TestModuleFactory {
@@ -22,10 +22,9 @@ export class TestModuleFactory {
 
   private constructor() { }
 
-  addServiceBusModule(moduleMetadata: ModuleMetadata = {}): Pick<TestModuleFactory, 'compile' | 'addMetadata'> {
-    const serviceBus = createServiceBusModule(moduleMetadata);
-    this.moduleMetadata.imports.push(...serviceBus.imports);
-    this.moduleMetadata.providers.push(...(serviceBus.providers || []));
+  addServiceBusModule(...providers: Provider[]): Pick<TestModuleFactory, 'compile' | 'addMetadata'> {
+    const serviceBusModule = createServiceBusModule(...providers);
+    this.moduleMetadata.imports.push(serviceBusModule);
     return this;
   }
 
