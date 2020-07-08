@@ -105,6 +105,25 @@ export type SbEmitterRef = SbEmitterMetadataOptions;
 export type SbEntityProvisionOption<T extends SbEntityProvision<any>> = SgEntityProvisionType | T;
 
 // @public (undocumented)
+export class SbErrorEvent {
+    constructor(phase: 'verify' | 'register' | 'listening', options: SbQueueMetadataOptions | SbSubscriptionMetadataOptions, error: Error | MessagingError);
+    // (undocumented)
+    readonly error: Error | MessagingError;
+    // (undocumented)
+    readonly options: SbQueueMetadataOptions | SbSubscriptionMetadataOptions;
+    // (undocumented)
+    readonly phase: 'verify' | 'register' | 'listening';
+}
+
+// @public (undocumented)
+export abstract class SbErrorHandler {
+    // (undocumented)
+    abstract onError(event: SbErrorEvent): Promise<void>;
+    // (undocumented)
+    abstract onMessageError(event: SbMessageErrorEvent): Promise<void>;
+}
+
+// @public (undocumented)
 export function SbIntercept(...interceptors: Array<SbInterceptor | Type<SbInterceptor>>): <T extends Record<K, OperatorFunction<SbContext<"queue" | "subscription">, any>>, K extends string>(target: T, key: K) => void;
 
 // @public (undocumented)
@@ -139,6 +158,15 @@ export interface SbManagementDefaultsAdapter {
 
 // @public
 export type SbMessageEmitter = SbEmitterRef | SbEmitterImp;
+
+// @public (undocumented)
+export class SbMessageErrorEvent {
+    constructor(options: SbQueueMetadataOptions | SbSubscriptionMetadataOptions, error: Error);
+    // (undocumented)
+    readonly error: Error;
+    // (undocumented)
+    readonly options: SbQueueMetadataOptions | SbSubscriptionMetadataOptions;
+}
 
 // @public (undocumented)
 export interface SbModuleRegisterOptions {
@@ -198,6 +226,7 @@ export interface SbServerOptions {
     // (undocumented)
     management?: SbManagementClientOptions[keyof SbManagementClientOptions];
     name?: string;
+    registerHandlers?: 'sequence' | 'parallel';
 }
 
 // Warning: (ae-forgotten-export) The symbol "SqlFilter" needs to be exported by the entry point index.d.ts
@@ -279,7 +308,7 @@ export interface ServiceBusManagementAadTokenCredentials extends ServiceBusAadTo
 // @public (undocumented)
 export class ServiceBusModule implements OnModuleInit, OnModuleDestroy {
     // Warning: (ae-forgotten-export) The symbol "SbDiscoveryFactoryService" needs to be exported by the entry point index.d.ts
-    constructor(discoveryFactory: SbDiscoveryFactoryService, metadataHelper?: any, clientOptions?: SbClientOptions[], serverOptions?: SbServerOptions[]);
+    constructor(discoveryFactory: SbDiscoveryFactoryService, errorHandler?: SbErrorHandler, metadataHelper?: any, clientOptions?: SbClientOptions[], serverOptions?: SbServerOptions[]);
     // (undocumented)
     onModuleDestroy(): Promise<void>;
     // (undocumented)
