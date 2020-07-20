@@ -33,6 +33,8 @@ export const initMongoConnection = (cleanModelsStrategy?: 'diff' | 'all') => {
   afterAll(async () => {
     await connection.connection.close();
   });
+
+  return () => connection;
 };
 
 export function checkDocumentAfterCreate<T extends mongoose.Document = mongoose.Document>(model: T, expectedData: Partial<T>) {

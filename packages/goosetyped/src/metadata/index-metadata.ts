@@ -15,6 +15,14 @@ function toCompoundIndex(key: string, metadataOptions?: GtSingleIndexMetadataArg
   };
 }
 
+function normalizeIndices(indices: GtCompoundIndexMetadataArgs['indices']) {
+  const result: any = {};
+  for (const k of Object.keys(indices)) {
+    result[k] = indices[k] === 'desc' ? -1 : 1;
+  }
+  return result;
+}
+
 export abstract class GtIndexMetadata {
 
   static setMetadata(metadataOptions: GtSingleIndexMetadataArgs | GtCompoundIndexMetadataArgs,
@@ -28,7 +36,7 @@ export abstract class GtIndexMetadata {
     if (Object.keys(indices).length === 0) {
       throw new Error('Invalid index or indices set, at least 1 index key is required');
     }
-    container.schema.index({ ...indices }, options);
+    container.schema.index({ ...normalizeIndices(indices) }, options);
   }
 
 }

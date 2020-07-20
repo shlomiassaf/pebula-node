@@ -20,7 +20,7 @@
       "disableOptimisticBPs": true,
       // "program": "${workspaceFolder}/node_modules/jest/bin/jest",
       "program": "${workspaceFolder}/tools/vscode-jest-tests/index.js",
-      "runtimeExecutable": "/Users/shlomiassaf/.nvm/versions/node/v12.9.1/bin/node",
+      "runtimeExecutable": "/Users/shlomiassaf/.nvm/versions/node/v12.9.1/bin/node"
     },
     {
       "name": "Current TS File",

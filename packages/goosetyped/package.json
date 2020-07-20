@@ -18,6 +18,7 @@
     "lint": "eslint --fix './src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",
+    "test:livedb": "jest --config jest.config.livedb.js",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
   },
   "devDependencies": {
