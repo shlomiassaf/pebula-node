@@ -9,6 +9,12 @@ export interface GtIndexOptions {
 
     /** Declares an unique index. */
     unique?: boolean | any;
+
+    /**
+     * Wether to run the indexing process in the background or not
+     * @default true
+     */
+    background?: boolean;
 }
 
 export interface GtSingleIndexMetadataArgs {

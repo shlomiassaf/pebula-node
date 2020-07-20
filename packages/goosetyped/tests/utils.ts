@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
 
+export const createMongoConnection = async () => {
+  const m = await mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true });
+  return m.connection;
+}
+
 export const initMongoConnection = (cleanModelsStrategy?: 'diff' | 'all') => {
   let modelsNames: string[];
   let connection: typeof mongoose;
