@@ -1,6 +1,6 @@
 {
   "name": "@pebula/goosetyped",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "main": "cjs/index.js",
   "types": "cjs/index-public.d.ts",
   "files": [

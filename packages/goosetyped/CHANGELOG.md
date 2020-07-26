@@ -1,3 +1,24 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+# [0.1.0](https://github.com/shlomiassaf/pebula-node/compare/@pebula/goosetyped@0.0.7...@pebula/goosetyped@0.1.0) (2020-07-26)
+
+
+### Bug Fixes
+
+* **goosetyped:** indexs not registering ([ae676c1](https://github.com/shlomiassaf/pebula-node/commit/ae676c11037e39f3bf641c51c2d896c743b50bf6))
+
+
+### Features
+
+* **goosetyped:** support extending of mixin and non-document base class hooks ([028dac9](https://github.com/shlomiassaf/pebula-node/commit/028dac9546eb861d10c0926f25a14291f842f2a9))
+
+
+
+
+
 ## 0.0.7 (2020-05-13)
 
 
@@ -65,5 +86,3 @@
 ### Features
 
 * **goosetyped:** new library ([cb8ae54](https://github.com/shlomiassaf/pebula-node/commit/cb8ae54692f09037bf51a731ba2c251f1d1b6265))
-
-
