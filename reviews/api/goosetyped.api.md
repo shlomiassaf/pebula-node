@@ -137,6 +137,7 @@ export function GtIndex(metadata: GtCompoundIndexMetadataArgs): ClassDecorator;
 
 // @public (undocumented)
 export interface GtIndexOptions {
+    background?: boolean;
     sparse?: boolean | any;
     text?: boolean | any;
     unique?: boolean | any;
