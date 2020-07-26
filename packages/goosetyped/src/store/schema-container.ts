@@ -70,6 +70,7 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
   private columns = new Map<string, GtColumnMetadata>();
   private modifiedSchemaOptions: Partial<mongoose.SchemaOptions> = {};
   private mixins: Array<Ctor<any>> = [];
+  private hooks: Array<['pre' | 'post', ...any[]]> = [];
   private queryHelper?: Ctor<any>;
 
   constructor(public readonly target: Ctor<any>, public readonly store: GtSchemaStore) {
@@ -98,6 +99,10 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
 
   defineMixins(mixins: Array<Ctor<any>>): void {
     this.mixins.push(...mixins);
+  }
+
+  addHook(stage: 'pre' | 'post', ...hookArgs: any[]) {
+    this.hooks.push([stage, ...hookArgs]);
   }
 
   addLocalProp(key: string) {
@@ -169,10 +174,17 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
         GtSchemaContainer.applyQueryHelpers(this.queryHelper.prototype, this.schema);
       }
 
+      let isFirst = false;
       for (const base of this.hierarchy.base) {
         GtSchemaContainer.extendContainer(this, base);
         if (base.queryHelper) {
           GtSchemaContainer.applyQueryHelpers(base.queryHelper.prototype, this.schema);
+        }
+        if (!isFirst) {
+          if (!base.model) {
+            this.hooks.unshift(...base.hooks);
+          }
+          isFirst = true;
         }
       }
 
@@ -180,12 +192,17 @@ export class GtSchemaContainer<TInstance extends mongoose.Document = mongoose.Do
         const mixinSchema = this.store.get(m);
         if (mixinSchema) {
           GtSchemaContainer.extendContainer(this, mixinSchema, true);
+          this.hooks.unshift(...mixinSchema.hooks);
         }
       }
 
       for (const column of this.columns.values()) {
         column.resolveType(this.target.prototype);
         this.applyColumn(column);
+      }
+
+      for (const [stage, ...args] of this.hooks) {
+        this.schema[stage as any](...args);
       }
 
       // handling soft keys

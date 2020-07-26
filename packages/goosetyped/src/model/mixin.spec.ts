@@ -1,6 +1,6 @@
 import { Document, DocumentQuery, FilterQuery } from 'mongoose';
 import { initMongoConnection } from '../../tests/utils';
-import { GtVersionKey, GtIndex, GtTimestampCreated, GtTimestampUpdated, GtDocument, GtColumn } from '../decorators';
+import { GtVersionKey, GtIndex, GtTimestampCreated, GtTimestampUpdated, GtDocument, GtColumn, GtSaveHook } from '../decorators';
 import { GtModel, GtQuery } from './mixin';
 
 describe('goosetyped', () => {
@@ -28,6 +28,17 @@ describe('goosetyped', () => {
       @GtColumn() owner: string;
     }
 
+    class HookMixin {
+      @GtColumn({ type: () => String })
+      hookRun: string[];
+
+      @GtSaveHook('pre')
+      HookMixinPreSaveHook() {
+        this.hookRun.push('HookMixinPreSaveHook');
+        (this as any).name = 'Hooked';
+      }
+    }
+
     it('should apply mixins', async () => {
       @GtDocument()
       class TestClass extends GtModel(TimestampMixin, VersionMixin, OwnerMixin) {
@@ -39,6 +50,85 @@ describe('goosetyped', () => {
       expect(t.updateDate).toBeInstanceOf(Date);
       expect(t.name).toBe('test');
       expect(t.owner).toBe('tester');
+    });
+
+    it('should apply mixins with hooks', async () => {
+      @GtDocument()
+      class TestClass extends GtModel(HookMixin) {
+        hookRun: string[] = [];
+        @GtColumn() name: string;
+      }
+      let t = await TestClass.create({ name: 'test' });
+      t = await TestClass.findById(t.id);
+      expect(t.name).toBe('Hooked');
+      expect(Array.from(t.hookRun)).toEqual(['HookMixinPreSaveHook']);
+    });
+
+    it('should apply mixins with hooks in proper order', async () => {
+      class HookAdHocMixin {
+        hookRun: string[];
+
+        @GtSaveHook('pre')
+        HookAdHocMixinPreSaveHook() {
+          this.hookRun.push('HookAdHocMixinPreSaveHook');
+        }
+      }
+
+      @GtDocument()
+      class BaseBaseBaseBaseTestClass extends GtModel(HookMixin, HookAdHocMixin) {
+        hookRun: string[] = [];
+
+        @GtSaveHook('pre')
+        BaseBaseBaseBaseTestClassPreSaveHook() {
+          this.hookRun.push('BaseBaseBaseBaseTestClassPreSaveHook');
+        }
+      }
+
+      class BaseBaseBaseTestClass extends BaseBaseBaseBaseTestClass {
+        @GtSaveHook('pre')
+        BaseBaseBaseTestClass() {
+          this.hookRun.push('BaseBaseBaseTestClass');
+        }
+      }
+
+      @GtDocument()
+      class BaseBaseTestClass extends BaseBaseBaseTestClass {
+        @GtSaveHook('pre')
+        BaseBaseTestClass() {
+          this.hookRun.push('BaseBaseTestClass');
+        }
+      }
+
+      @GtDocument()
+      class BaseTestClass extends BaseBaseTestClass {
+        @GtColumn() name: string;
+
+        @GtSaveHook('pre')
+        BaseTestClass() {
+          this.hookRun.push('BaseTestClass');
+        }
+      }
+
+      @GtDocument()
+      class TestClass extends BaseTestClass {
+        @GtSaveHook('pre')
+        TestClass() {
+          this.hookRun.push('TestClass');
+        }
+      }
+
+      let t = await TestClass.create({ name: 'test' });
+      t = await TestClass.findById(t.id);
+      expect(t.name).toBe('Hooked');
+      expect(Array.from(t.hookRun)).toEqual([
+        'TestClass',
+        'BaseTestClass',
+        'BaseBaseBaseTestClass',
+        'BaseBaseTestClass',
+        'HookAdHocMixinPreSaveHook',
+        'HookMixinPreSaveHook',
+        'BaseBaseBaseBaseTestClassPreSaveHook',
+      ]);
     });
 
     it('should apply query helper mixins', async () => {

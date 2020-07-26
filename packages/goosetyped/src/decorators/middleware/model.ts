@@ -9,12 +9,7 @@ interface LocalSchema {
 
 function createHookDecorator(stage: 'pre' | 'post', hook: 'insertMany') {
   return (target: object, key: string, descriptor: PropertyDescriptor) => {
-    const schema = gtSchemaStore.getCreate(target).schema as LocalSchema;
-    if (stage === 'pre') {
-      schema.pre(hook, {}, descriptor.value);
-    } else {
-      schema.post(hook, {}, descriptor.value);
-    }
+    gtSchemaStore.getCreate(target).addHook(stage, hook, {}, descriptor.value);
   };
 }
 
