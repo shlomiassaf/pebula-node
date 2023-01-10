@@ -29,7 +29,7 @@ export async function registerMessageHandler(receiver: Receiver | SessionReceive
       }, 10); 
     };
 
-    receiver.registerMessageHandler(onMessage, onErrorRouter);
+    receiver.registerMessageHandler(onMessage, onErrorRouter, options);
     poll();
   });
 }
