@@ -1,14 +1,8 @@
-import * as armModels from '@azure/arm-servicebus/esm/models';
+import * as armModels from '@azure/arm-servicebus';
 import { SbQueue, SbTopic, SbSubscription, SbRule, SbCorrelationFilter, SbSqlFilter } from '../src/models';
 
 export function convertToQueue(queue: armModels.SBQueue): SbQueue {
   const {
-    countDetails,
-    createdAt,
-    updatedAt,
-    accessedAt,
-    sizeInBytes,
-    messageCount,
     lockDuration,
     maxSizeInMegabytes,
     requiresDuplicateDetection,
@@ -24,13 +18,12 @@ export function convertToQueue(queue: armModels.SBQueue): SbQueue {
     enableExpress,
     forwardTo,
     forwardDeadLetteredMessagesTo,
+    maxMessageSizeInKilobytes,
   } = queue;
   return {
     lockDuration,
-    sizeInBytes,
     maxSizeInMegabytes,
-    messageCount,
-    defaultMessageTtl: defaultMessageTimeToLive,
+    defaultMessageTimeToLive,
     duplicateDetectionHistoryTimeWindow,
     forwardDeadLetteredMessagesTo,
     autoDeleteOnIdle,
@@ -40,35 +33,15 @@ export function convertToQueue(queue: armModels.SBQueue): SbQueue {
     requiresDuplicateDetection,
     deadLetteringOnMessageExpiration,
     forwardTo,
-    // userMetadata,
     enablePartitioning,
-    // authorizationRules,
-    messageCountDetails: {
-      activeMessageCount: countDetails.activeMessageCount,
-      deadLetterMessageCount: countDetails.deadLetterMessageCount,
-      scheduledMessageCount: countDetails.scheduledMessageCount,
-      transferMessageCount: countDetails.transferMessageCount,
-      transferDeadLetterMessageCount: countDetails.transferDeadLetterMessageCount,
-    },
-    // supportOrdering,
     enableExpress,
-    // isAnonymousAccessible,
-    // entityAvailabilityStatus,
     status,
-    createdOn: createdAt.toISOString(),
-    updatedOn: updatedAt.toISOString(),
-    accessedOn: accessedAt.toISOString(),
+    maxMessageSizeInKilobytes,
   };
 }
 
 export function convertToTopic(topic: armModels.SBTopic): SbTopic {
   const {
-    sizeInBytes,
-    createdAt,
-    updatedAt,
-    accessedAt,
-    subscriptionCount,
-    countDetails,
     defaultMessageTimeToLive,
     maxSizeInMegabytes,
     requiresDuplicateDetection,
@@ -79,55 +52,30 @@ export function convertToTopic(topic: armModels.SBTopic): SbTopic {
     autoDeleteOnIdle,
     enablePartitioning,
     enableExpress,
+    maxMessageSizeInKilobytes
   } = topic;
   return {
-    sizeInBytes,
     maxSizeInMegabytes,
     requiresDuplicateDetection,
-    // enableSubscriptionPartitioning,
-    // filteringMessagesBeforePublishing,
-    // authorizationRules?: AuthorizationRule[];
     enablePartitioning,
     supportOrdering,
     enableBatchedOperations,
     autoDeleteOnIdle,
-    // messageCount,
-    subscriptionCount,
-    // maxDeliveryCount,
-    defaultMessageTtl: defaultMessageTimeToLive,
+    defaultMessageTimeToLive,
     duplicateDetectionHistoryTimeWindow,
-    // userMetadata,
-    // isExpress?: boolean;
     enableExpress,
-    messageCountDetails: {
-      activeMessageCount: countDetails.activeMessageCount,
-      deadLetterMessageCount: countDetails.deadLetterMessageCount,
-      scheduledMessageCount: countDetails.scheduledMessageCount,
-      transferMessageCount: countDetails.transferMessageCount,
-      transferDeadLetterMessageCount: countDetails.transferDeadLetterMessageCount,
-    },
-    // isAnonymousAccessible?: boolean;
-    entityAvailabilityStatus: undefined,
     status,
-    createdOn: createdAt.toISOString(),
-    updatedOn: updatedAt.toISOString(),
-    accessedOn: accessedAt.toISOString(),
+    maxMessageSizeInKilobytes,
   };
 }
 
 export function convertToSubscription(subscription: armModels.SBSubscription): SbSubscription {
   const {
-    messageCount,
-    createdAt,
-    accessedAt,
-    updatedAt,
-    countDetails,
     lockDuration,
     requiresSession,
     defaultMessageTimeToLive,
     deadLetteringOnFilterEvaluationExceptions,
     deadLetteringOnMessageExpiration,
-    duplicateDetectionHistoryTimeWindow,
     maxDeliveryCount,
     status,
     enableBatchedOperations,
@@ -137,33 +85,16 @@ export function convertToSubscription(subscription: armModels.SBSubscription): S
   } = subscription;
   return {
     lockDuration,
-    // sizeInBytes,
-    // maxSizeInMegabytes,
-    messageCount,
-    // enablePartitioning,
     requiresSession,
     enableBatchedOperations,
-    defaultMessageTtl: defaultMessageTimeToLive,
-    // defaultRuleDescription,
+    defaultMessageTimeToLive,
     autoDeleteOnIdle,
     deadLetteringOnMessageExpiration,
     deadLetteringOnFilterEvaluationExceptions,
     forwardDeadLetteredMessagesTo,
     maxDeliveryCount,
     forwardTo,
-    // userMetadata,
-    messageCountDetails: {
-      activeMessageCount: countDetails.activeMessageCount,
-      deadLetterMessageCount: countDetails.deadLetterMessageCount,
-      scheduledMessageCount: countDetails.scheduledMessageCount,
-      transferMessageCount: countDetails.transferMessageCount,
-      transferDeadLetterMessageCount: countDetails.transferDeadLetterMessageCount,
-    },
-    entityAvailabilityStatus: undefined,
     status,
-    createdOn: createdAt.toISOString(),
-    updatedOn: updatedAt.toISOString(),
-    accessedOn: accessedAt.toISOString(),
   };
 }
 
@@ -181,13 +112,11 @@ export function convertFromRule(rule: SbRule): armModels.Rule {
   return armRule;
 }
 
-export function convertToRule(topicName: string, subscriptionName: string, ruleName: string, rule: armModels.Rule): SbRule {
+export function convertToRule(ruleName: string, rule: armModels.Rule): SbRule {
   return {
-    ruleName,
+    name: ruleName,
     filter: rule.filterType === 'SqlFilter' ? convertSqlFilter('to', rule.sqlFilter) : convertCorrelationFilter('to', rule.correlationFilter),
     action: rule.action ? convertSqlFilter('to', rule.action) : undefined,
-    topicName,
-    subscriptionName,
   };
 }
 
@@ -195,8 +124,8 @@ function convertSqlFilter(dir: 'to', filter: armModels.SqlFilter): SbSqlFilter;
 function convertSqlFilter(dir: 'from', filter: SbSqlFilter): armModels.SqlFilter;
 function convertSqlFilter(dir: 'to' | 'from',
                           filter: armModels.SqlFilter | SbSqlFilter): SbSqlFilter | armModels.SqlFilter {
-  const { sqlExpression, compatibilityLevel, requiresPreprocessing } = filter; // no place for sqlParameters
-  return { sqlExpression, compatibilityLevel, requiresPreprocessing };
+  const { sqlExpression } = filter;
+  return { sqlExpression };
 }
 
 function convertCorrelationFilter(dir: 'to', filter: armModels.CorrelationFilter): SbCorrelationFilter;
@@ -208,7 +137,6 @@ function convertCorrelationFilter(dir: 'to' | 'from',
     messageId,
     to,
     replyTo,
-    label,
     sessionId,
     replyToSessionId,
     contentType,
@@ -218,15 +146,16 @@ function convertCorrelationFilter(dir: 'to' | 'from',
     messageId,
     to,
     replyTo,
-    label,
     sessionId,
     replyToSessionId,
     contentType,
   };
   if (dir === 'to') {
-    (result as SbCorrelationFilter).userProperties = (result as armModels.CorrelationFilter).properties;
+    (result as SbCorrelationFilter).applicationProperties = (filter as armModels.CorrelationFilter).properties;
+    (result as SbCorrelationFilter).subject = (filter as armModels.CorrelationFilter).label;
   } else {
-    (result as armModels.CorrelationFilter).properties = (result as SbCorrelationFilter).userProperties;
+    (result as armModels.CorrelationFilter).properties = (filter as SbCorrelationFilter).applicationProperties as { [propertyName: string]: string };
+    (result as armModels.CorrelationFilter).label = (filter as SbCorrelationFilter).subject;
   }
   return result;
 }

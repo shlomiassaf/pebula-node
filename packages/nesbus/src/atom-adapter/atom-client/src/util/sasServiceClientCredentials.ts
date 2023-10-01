@@ -1,57 +1,67 @@
 // Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { HttpHeaders, WebResource, ServiceClientCredentials } from "@azure/core-http";
+import { AccessToken, NamedKeyCredential } from "@azure/core-auth";
+import { createHttpHeaders, PipelineRequest } from "@azure/core-rest-pipeline";
 import { generateKey } from "./crypto";
+import { createSasTokenProvider, SasTokenProvider } from "@azure/core-amqp";
 
 /**
  * @internal
- * @ignore
- * @class SasServiceClientCredentials
- * @implements {ServiceClientCredentials}
  */
-export class SasServiceClientCredentials implements ServiceClientCredentials {
-  keyName: string;
-  keyValue: string;
+export class SasServiceClientCredentials {
+  /**
+   * The NamedKeyCredential containing the key name and secret key value.
+   */
+  private _credential: NamedKeyCredential;
 
+  /**
+   * A SasTokenProvider provides a method to retrieve an `AccessToken`.
+   */
+  private _tokenProvider: SasTokenProvider;
   /**
    * Creates a new sasServiceClientCredentials object.
    *
-   * @constructor
-   * @param {string} sharedAccessKeyName The SAS key name to use.
-   * @param {string} sharedAccessKey The SAS key value to use
+   * @param credential - The NamedKeyCredential containing the key name and secret key value.
    */
-  constructor(sharedAccessKeyName: string, sharedAccessKey: string) {
-    this.keyName = sharedAccessKeyName;
-    this.keyValue = sharedAccessKey;
+  constructor(credential: NamedKeyCredential) {
+    this._credential = credential;
+    this._tokenProvider = createSasTokenProvider(credential);
   }
 
   private async _generateSignature(targetUri: string, expirationDate: number): Promise<string> {
     const stringToSign = `${targetUri}\n${expirationDate}`;
-    const result = await generateKey(this.keyValue, stringToSign);
+    const result = await generateKey(this._credential.key, stringToSign);
     return result;
   }
 
   /**
    * Signs a request with the Authentication header.
    *
-   * @param {WebResource} webResource The WebResource to be signed.
-   * @returns {Promise<WebResource>} The signed request object.
+   * @param request - The {@link PipelineRequest} to be signed.
+   * @returns The signed request object.
    */
-  async signRequest(webResource: WebResource): Promise<WebResource> {
-    if (!webResource.headers) webResource.headers = new HttpHeaders();
+  async signRequest(request: PipelineRequest): Promise<PipelineRequest> {
+    if (!request.headers) request.headers = createHttpHeaders();
 
-    const targetUri = encodeURIComponent(webResource.url.toLowerCase()).toLowerCase();
+    const targetUri = encodeURIComponent(request.url.toLowerCase()).toLowerCase();
 
     const date = new Date();
     date.setMinutes(date.getMinutes() + 5);
     const expirationDate = Math.round(date.getTime() / 1000);
     const signature = await this._generateSignature(targetUri, expirationDate);
-    webResource.headers.set(
+    request.headers.set(
       "authorization",
-      `SharedAccessSignature sig=${signature}&se=${expirationDate}&skn=${this.keyName}&sr=${targetUri}`
+      `SharedAccessSignature sig=${signature}&se=${expirationDate}&skn=${this._credential.name}&sr=${targetUri}`
     );
-    webResource.withCredentials = true;
-    return webResource;
+    request.withCredentials = true;
+    return request;
+  }
+
+  getToken(audience: string): AccessToken {
+    return this._tokenProvider.getToken(audience);
   }
 }

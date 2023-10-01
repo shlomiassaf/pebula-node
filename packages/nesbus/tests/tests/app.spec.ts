@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Sender } from '@azure/service-bus';
+import { ServiceBusSender } from '@azure/service-bus';
 import { INestApplication, INestMicroservice, Controller, Injectable } from '@nestjs/common';
 import { Queue, Subscription, Ctx, SbContext, QueueEmitter, Topic, SbIntercept, SbErrorHandler, SbErrorEvent, SbMessageErrorEvent } from '@pebula/nesbus';
 import { SbBackoffRetry } from '@pebula/nesbus/tasks';
@@ -69,19 +69,19 @@ export class ServiceBusController {
 export class ServiceBusEmitClient {
 
   @QueueEmitter(EMITTERS.TEST_QUEUE_1)
-  testQueue1: Sender;
+  testQueue1: ServiceBusSender;
 
   @QueueEmitter(EMITTERS.TEST_QUEUE_2)
-  testQueue2: Sender;
+  testQueue2: ServiceBusSender;
 
   @QueueEmitter(EMITTERS.TEST_QUEUE_3)
-  testQueue3: Sender;
+  testQueue3: ServiceBusSender;
 
   @Topic(EMITTERS.TEST_TOPIC_1)
-  testTopic1: Sender;
+  testTopic1: ServiceBusSender;
 
   @Topic(EMITTERS.TEST_TOPIC_2)
-  testTopic2: Sender;
+  testTopic2: ServiceBusSender;
 }
 
 
@@ -122,35 +122,35 @@ describe('@pebula/nesbus', () => {
 
   it('should route queue message using method handler', async () => {
     const testMessage = TestMessage.getSample();
-    await serviceBusEmitClient.testQueue1.send(testMessage);
+    await serviceBusEmitClient.testQueue1.sendMessages(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(1);
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
 
   it('should route topic subscriber message using method handler', async () => {
     const testMessage = TestMessage.getSample();
-    await serviceBusEmitClient.testTopic1.send(testMessage);
+    await serviceBusEmitClient.testTopic1.sendMessages(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(1);
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
   
   it('should route queue message using observable handling', async () => {
     const testMessage = TestMessage.getSample();
-    await serviceBusEmitClient.testQueue2.send(testMessage);
+    await serviceBusEmitClient.testQueue2.sendMessages(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(1);
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
 
   it('should route topic subscriber message using observable handling', async () => {
     const testMessage = TestMessage.getSample();
-    await serviceBusEmitClient.testTopic2.send(testMessage);
+    await serviceBusEmitClient.testTopic2.sendMessages(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(1);
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });
 
   it('should activate backoff', async () => {
     const testMessage = TestMessage.getSample();
-    await serviceBusEmitClient.testQueue3.send(testMessage);
+    await serviceBusEmitClient.testQueue3.sendMessages(testMessage);
     const [ receivedMsg ] = await msgStore.waitForCount(4, 1000 * 60);
     TestMessage.checkMessageContents(testMessage, receivedMsg);
   });

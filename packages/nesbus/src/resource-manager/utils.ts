@@ -7,13 +7,13 @@ import { SbConfigurator, createManagementClientAdapter } from '../management';
 export function createServiceBusClient(clientOptions: SbServerOptions['client']): ServiceBusClient {
   const { credentials, options } = clientOptions;
   if ('connectionString' in credentials) {
-    return ServiceBusClient.createFromConnectionString(credentials.connectionString, options);
+    return new ServiceBusClient(credentials.connectionString, options)
   }
   if ('tokenProvider' in credentials) {
-    return ServiceBusClient.createFromTokenProvider(credentials.host, credentials.tokenProvider, options);
+    return new ServiceBusClient(credentials.host, credentials.tokenProvider, options);
   }
   if ('credentials' in credentials) {
-    return ServiceBusClient.createFromAadTokenCredentials(credentials.host, credentials.credentials as any, options);
+    return new ServiceBusClient(credentials.host, credentials.credentials, options);
   }
   throw new Error('Invalid credentials.');
 }

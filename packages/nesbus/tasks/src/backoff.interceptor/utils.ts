@@ -1,4 +1,4 @@
-import { ServiceBusMessage } from '@azure/service-bus';
+import { ServiceBusMessage, ServiceBusReceivedMessage } from '@azure/service-bus';
 import { SbMessageEmitter } from '@pebula/nesbus';
 
 export interface SbBackoffRetryOptions {
@@ -39,9 +39,9 @@ export const DEFAULT_BACKOFF_CONFIG: SbBackoffRetryOptions = {
   retryCountKey: 'SB_BACKOFF_RETRY_COUNT',
 };
 
-export function extractRetryCount(retryCountKey: string, msg: ServiceBusMessage): number | false {
-  const userProps = msg.userProperties || {};
-  const rawValue = userProps[retryCountKey];
+export function extractRetryCount(retryCountKey: string, msg: ServiceBusReceivedMessage): number | false {
+  const applicationProps = msg.applicationProperties || {};
+  const rawValue = applicationProps[retryCountKey];
   const retryCount = !rawValue
     ? rawValue == 0 ? 0 : Number.NaN // tslint:disable-line: triple-equals
     : Number(rawValue)
@@ -68,12 +68,12 @@ export function calculateBackOffTime(config: SbBackoffRetryOptions, currentItera
   }
 }
 
-export function createBackoffClone(currentIteration: number, msg: ServiceBusMessage, config: SbBackoffRetryOptions) {
-  const clone = msg.clone();
-  if (!clone.userProperties) {
-    clone.userProperties = {};
+export function createBackoffClone(currentIteration: number, msg: ServiceBusReceivedMessage, config: SbBackoffRetryOptions) {
+  const clone = cloneMessage(msg);
+  if (!clone.applicationProperties) {
+    clone.applicationProperties = {};
   }
-  clone.userProperties[config.retryCountKey] = currentIteration + 1;
+  clone.applicationProperties[config.retryCountKey] = currentIteration + 1;
 
   const backOffDelay = calculateBackOffTime(config, currentIteration);
   clone.scheduledEnqueueTimeUtc = new Date(Date.now() + backOffDelay);
@@ -81,4 +81,24 @@ export function createBackoffClone(currentIteration: number, msg: ServiceBusMess
     backOffDelay,
     message: clone,
   };
+  
+  function cloneMessage(msg: ServiceBusMessage): ServiceBusMessage {
+    const clone: ServiceBusMessage = {
+      body: msg.body,
+      contentType: msg.contentType,
+      correlationId: msg.correlationId,
+      subject: msg.subject,
+      messageId: msg.messageId,
+      partitionKey: msg.partitionKey,
+      replyTo: msg.replyTo,
+      replyToSessionId: msg.replyToSessionId,
+      scheduledEnqueueTimeUtc: msg.scheduledEnqueueTimeUtc,
+      sessionId: msg.sessionId,
+      timeToLive: msg.timeToLive,
+      to: msg.to,
+      applicationProperties: msg.applicationProperties,
+    };
+    
+    return clone;
+  }
 }

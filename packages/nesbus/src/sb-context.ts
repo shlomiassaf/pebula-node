@@ -1,27 +1,31 @@
-import { ServiceBusMessage } from '@azure/service-bus';
+import { ServiceBusReceivedMessage, ServiceBusReceiver, ServiceBusSessionReceiver } from '@azure/service-bus';
 import { BaseRpcContext } from '@nestjs/microservices/ctx-host/base-rpc.context';
 
 import { SbEmitterRef, SbEmitterImp, SbSubscriberTypeMap } from './interfaces';
 import { sbResourceManager } from './resource-manager';
 import { SbSubscriberMetadata } from './metadata';
 
-export type SbContextArgs<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> = [SbSubscriberMetadata<T>, ServiceBusMessage];
+export type SbContextArgs<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> = [SbSubscriberMetadata<T>, ServiceBusReceivedMessage];
 
 export class SbContext<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> extends BaseRpcContext<SbContextArgs<T>> {
   get type(): T { return this.metadata.type; }
 
-  private message: ServiceBusMessage;
+  private message: ServiceBusReceivedMessage;
   private metadata: SbSubscriberMetadata<T>;
+  private receiver: ServiceBusReceiver | ServiceBusSessionReceiver;
 
-  constructor(args: SbContextArgs<T>) {
+  constructor(args: SbContextArgs<T>, receiver: ServiceBusReceiver | ServiceBusSessionReceiver) {
     super(args);
     this.metadata = args[0];
     this.message = args[1];
+    this.receiver = receiver;
   }
 
   getData<TBody = any>(): TBody { return this.message.body; }
 
-  getMessage(): ServiceBusMessage { return this.message; }
+  getMessage(): ServiceBusReceivedMessage { return this.message; }
+  
+  getReceiver(): ServiceBusReceiver | ServiceBusSessionReceiver { return this.receiver; }
 
   /**
    * The entity name used to identify subscription/queue in service bus

@@ -1,5 +1,5 @@
 import { LoggerService } from '@nestjs/common';
-import { ServiceBusClient, Sender } from '@azure/service-bus';
+import { ServiceBusClient } from '@azure/service-bus';
 import { SbConfigurator } from '../management';
 import { SbClientOptions } from '../interfaces';
 import { SbChannelManager } from '../resource-manager/';

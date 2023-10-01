@@ -1,14 +1,14 @@
 // TODO: ON_ATOM_IS_PUBLIC
-import { QueueDetails } from '../atom-adapter/atom-client/src/serializers/queueResourceSerializer';
-import { TopicDetails } from '../atom-adapter/atom-client/src/serializers/topicResourceSerializer';
-import { SubscriptionDetails } from '../atom-adapter/atom-client/src/serializers/subscriptionResourceSerializer';
-import { RuleDetails } from '../atom-adapter/atom-client/src/serializers/ruleResourceSerializer';
-import { SqlFilter } from '../atom-adapter/atom-client/src/serializers/ruleResourceSerializer';
-import { CorrelationFilter } from '../atom-adapter/atom-client/src/core/managementClient';
+import { QueueProperties } from '../atom-adapter/atom-client/src/serializers/queueResourceSerializer';
+import { TopicProperties } from '../atom-adapter/atom-client/src/serializers/topicResourceSerializer';
+import { SubscriptionProperties } from '../atom-adapter/atom-client/src/serializers/subscriptionResourceSerializer';
+import { RuleProperties } from '../atom-adapter/atom-client/src/serializers/ruleResourceSerializer';
+import { SqlRuleFilter } from '../atom-adapter/atom-client/src/serializers/ruleResourceSerializer';
+import { CorrelationRuleFilter } from '../atom-adapter/atom-client/src/core/managementClient';
 
-export type SbQueue = Partial<Omit<QueueDetails, 'queueName'>>;
-export type SbTopic = Partial<Omit<TopicDetails, 'topicName'>>;
-export type SbSubscription = Partial<Omit<SubscriptionDetails, 'subscriptionName' | 'topicName'>>;
-export type SbRule = Partial<Omit<RuleDetails, 'createdOn'>>;
-export type SbSqlFilter = Partial<Omit<SqlFilter, 'sqlParameters'>>;
-export type SbCorrelationFilter = Partial<CorrelationFilter>;
+export type SbQueue = Partial<Omit<QueueProperties, 'name'>>;
+export type SbTopic = Partial<Omit<TopicProperties, 'name'>>;
+export type SbSubscription = Partial<Omit<SubscriptionProperties, 'subscriptionName' | 'topicName'>>;
+export type SbRule = Partial<Omit<RuleProperties, 'createdAt'>>;
+export type SbSqlFilter = Omit<SqlRuleFilter, 'sqlParameters'>;
+export type SbCorrelationFilter = Partial<CorrelationRuleFilter>;

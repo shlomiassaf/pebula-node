@@ -1,3 +1,8 @@
+## 0.0.7 (2023-10-01)
+### Features
+* **nesbus:** Supporting version 7.9.1 of `@azure/service-bus`
+
+
 ## 0.0.5 (2020-07-08)
 
 

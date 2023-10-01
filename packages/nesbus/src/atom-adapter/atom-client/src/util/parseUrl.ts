@@ -1,8 +1,17 @@
 // Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-const url = require("url");
+/**
+ * @internal
+ */
+import { URL } from "url";
 
-export const parseURL = (rawUrl: string) => {
-  return new url.URL(rawUrl);
+/**
+ * @internal
+ */
+export const parseURL = (rawUrl: string): URL => {
+  return new URL(rawUrl);
 };

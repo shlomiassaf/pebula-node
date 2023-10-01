@@ -1,76 +1,124 @@
 // Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Licensed under the MIT license.
 
 import {
-  HttpOperationResponse,
+  PipelineResponse,
   RestError,
-  stripRequest,
-  stripResponse,
-  WebResource,
-  stringifyXML,
-  parseXML,
-  ServiceClient
-} from "@azure/core-http";
+  PipelineRequest,
+  TransferProgressEvent,
+} from "@azure/core-rest-pipeline";
+import { ServiceClient, OperationOptions, FullOperationResponse } from "@azure/core-client";
+import { parseXML, stringifyXML } from "@azure/core-xml";
 
 import * as Constants from "./constants";
-import * as log from "../log";
+import { administrationLogger as logger } from "../log";
 import { Buffer } from "buffer";
 
 import { parseURL } from "./parseUrl";
+import { isJSONLikeObject } from "./utils";
+import { isDefined } from "@azure/core-util";
+import { OperationTracingOptions } from "@azure/core-tracing";
+import { AbortSignalLike } from "@azure/abort-controller";
+import { InternalQueueOptions } from "../serializers/queueResourceSerializer";
+import { InternalTopicOptions } from "../serializers/topicResourceSerializer";
+import { InternalSubscriptionOptions } from "../serializers/subscriptionResourceSerializer";
+import { CreateRuleOptions } from "../serializers/ruleResourceSerializer";
 
 /**
  * @internal
- * @ignore
  * Represents the internal ATOM XML serializer interface
  */
 export interface AtomXmlSerializer {
-  serialize(requestBodyInJson: object): object;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  serialize(requestBodyInJson: object): Record<string, unknown>;
 
-  deserialize(response: HttpOperationResponse): Promise<HttpOperationResponse>;
+  deserialize(response: FullOperationResponse): Promise<FullOperationResponse>;
+}
+
+/**
+   applies options to the pipeline request.
+  */
+function applyRequestOptions(
+  request: PipelineRequest,
+  options: {
+    headers?: Record<string, string>;
+    onUploadProgress?: (progress: TransferProgressEvent) => void;
+    onDownloadProgress?: (progress: TransferProgressEvent) => void;
+    abortSignal?: AbortSignalLike;
+    tracingOptions?: OperationTracingOptions;
+    timeout: number;
+  }
+): void {
+  if (options.headers) {
+    const headers = options.headers;
+    for (const headerName of Object.keys(headers)) {
+      request.headers.set(headerName, headers[headerName]);
+    }
+  }
+  request.onDownloadProgress = options.onDownloadProgress;
+  request.onUploadProgress = options.onUploadProgress;
+  request.abortSignal = options.abortSignal;
+  request.timeout = options.timeout;
+  if (options.tracingOptions) {
+    request.tracingOptions = options.tracingOptions;
+  }
 }
 
 /**
  * @internal
- * @ignore
  * Utility to execute Atom XML operations as HTTP requests
- * @param webResource
- * @param serializer
  */
 export async function executeAtomXmlOperation(
   serviceBusAtomManagementClient: ServiceClient,
-  webResource: WebResource,
-  serializer: AtomXmlSerializer
-): Promise<HttpOperationResponse> {
-  if (webResource.body) {
-    const content: object = serializer.serialize(webResource.body);
-    webResource.body = stringifyXML(content, { rootName: "entry" });
+  request: PipelineRequest,
+  serializer: AtomXmlSerializer,
+  operationOptions: OperationOptions,
+  requestObject?:
+    | InternalQueueOptions
+    | InternalTopicOptions
+    | InternalSubscriptionOptions
+    | CreateRuleOptions
+): Promise<FullOperationResponse> {
+  if (requestObject) {
+    request.body = stringifyXML(serializer.serialize(requestObject), { rootName: "entry" });
+    if (request.method === "PUT") {
+      request.headers.set("content-length", Buffer.byteLength(request.body));
+    }
   }
 
-  if (webResource.method == "PUT") {
-    webResource.headers.set("content-length", Buffer.byteLength(webResource.body));
-  }
+  logger.verbose(`Executing ATOM based HTTP request: ${request.body}`);
 
-  log.httpAtomXml(`Executing ATOM based HTTP request: ${webResource.body}`);
+  const reqPrepareOptions = {
+    headers: operationOptions.requestOptions?.customHeaders,
+    onUploadProgress: operationOptions.requestOptions?.onUploadProgress,
+    onDownloadProgress: operationOptions.requestOptions?.onDownloadProgress,
+    abortSignal: operationOptions.abortSignal,
+    tracingOptions: operationOptions.tracingOptions,
+    disableJsonStringifyOnBody: true,
+    timeout: operationOptions.requestOptions?.timeout || 0,
+  };
+  applyRequestOptions(request, reqPrepareOptions);
+  const response: PipelineResponse = await serviceBusAtomManagementClient.sendRequest(request);
 
-  const response: HttpOperationResponse = await serviceBusAtomManagementClient.sendRequest(
-    webResource
-  );
-
-  log.httpAtomXml(`Received ATOM based HTTP response: ${response.bodyAsText}`);
+  logger.verbose(`Received ATOM based HTTP response: ${response.bodyAsText}`);
 
   try {
     if (response.bodyAsText) {
-      response.parsedBody = await parseXML(response.bodyAsText, { includeRoot: true });
+      (response as FullOperationResponse).parsedBody = await parseXML(response.bodyAsText, {
+        includeRoot: true,
+      });
     }
   } catch (err) {
     const error = new RestError(
       `Error occurred while parsing the response body - expected the service to return valid xml content.`,
-      RestError.PARSE_ERROR,
-      response.status,
-      stripRequest(response.request),
-      stripResponse(response)
+      {
+        code: RestError.PARSE_ERROR,
+        statusCode: response.status,
+        request: response.request,
+        response,
+      }
     );
-    log.warning("Error parsing response body from Service - %0", err);
+    logger.logError(err, "Error parsing response body from Service");
     throw error;
   }
 
@@ -79,55 +127,67 @@ export async function executeAtomXmlOperation(
 
 /**
  * @internal
- * @ignore
- * Serializes input information to construct the Atom XML request
- * @param resourceName Name of the resource to be serialized like `QueueDescription`
- * @param resource The entity details
- * @param allowedProperties The set of properties that are allowed by the service for the
- * associated operation(s);
+ * The key-value pairs having undefined/null as the values would lead to the empty tags in the serialized XML request.
+ * Empty tags in the request body is problematic because of the following reasons.
+ * - ATOM based management operations throw a "Bad Request" error if empty tags are included in the XML request body at top level.
+ * - At the inner levels, Service assigns the empty strings as values to the empty tags instead of throwing an error.
+ *
+ * This method recursively removes the key-value pairs with undefined/null as the values from the request object that is to be serialized.
+ *
  */
-export function serializeToAtomXmlRequest(resourceName: string, resource: any): object {
-  const content: any = {};
-
-  // The top level key value pairs having undefined/null as the value are removed in order to address issue where the Service Bus'
-  // ATOM based management operations throw a "Bad Request" error if empty tags are included in the xml request body at top level.
-  const processedResource = Object.assign({}, resource);
-  Object.keys(processedResource).forEach(function(property) {
-    if (processedResource[property] == undefined) {
-      delete processedResource[property];
+export function sanitizeSerializableObject(resource: { [key: string]: any }): void {
+  Object.keys(resource).forEach(function (property) {
+    if (!isDefined(resource[property])) {
+      delete resource[property];
+    } else if (isJSONLikeObject(resource[property])) {
+      sanitizeSerializableObject(resource[property]);
     }
   });
-  content[resourceName] = processedResource;
+}
+
+/**
+ * @internal
+ * Serializes input information to construct the Atom XML request
+ * @param resourceName - Name of the resource to be serialized like `QueueDescription`
+ * @param resource - The entity details
+ * @param allowedProperties - The set of properties that are allowed by the service for the
+ * associated operation(s);
+ */
+export function serializeToAtomXmlRequest(
+  resourceName: string,
+  resource: unknown
+): Record<string, unknown> {
+  const content: any = {};
+
+  content[resourceName] = Object.assign({}, resource);
+  sanitizeSerializableObject(content[resourceName]);
 
   content[resourceName][Constants.XML_METADATA_MARKER] = {
     xmlns: "http://schemas.microsoft.com/netservices/2010/10/servicebus/connect",
-    "xmlns:i": "http://www.w3.org/2001/XMLSchema-instance"
+    "xmlns:i": "http://www.w3.org/2001/XMLSchema-instance",
   };
 
   content[Constants.XML_METADATA_MARKER] = { type: "application/xml" };
-  const requestDetails: any = {
+  const requestDetails: Record<string, unknown> = {
     updated: new Date().toISOString(),
-    content: content
+    content: content,
   };
   requestDetails[Constants.XML_METADATA_MARKER] = {
-    xmlns: "http://www.w3.org/2005/Atom"
+    xmlns: "http://www.w3.org/2005/Atom",
   };
   return requestDetails;
 }
 
 /**
  * @internal
- * @ignore
  * Transforms response to contain the parsed data.
- * @param nameProperties The set of 'name' properties to be constructed on the
+ * @param nameProperties - The set of 'name' properties to be constructed on the
  * resultant object e.g., QueueName, TopicName, etc.
- * @param response
- * @param shouldParseResponse
  */
 export async function deserializeAtomXmlResponse(
   nameProperties: string[],
-  response: HttpOperationResponse
-): Promise<HttpOperationResponse> {
+  response: FullOperationResponse
+): Promise<FullOperationResponse> {
   // If received data is a non-valid HTTP response, the body is expected to contain error information
   if (response.status < 200 || response.status >= 300) {
     throw buildError(response);
@@ -140,14 +200,13 @@ export async function deserializeAtomXmlResponse(
 
 /**
  * @internal
- * @ignore
  * Utility to deserialize the given JSON content in response body based on
  * if it's a single `entry` or `feed` and updates the `response.parsedBody` to hold the evaluated output.
- * @param response Response containing the JSON value in `response.parsedBody`
- * @nameProperties The set of 'name' properties to be constructed on the
+ * @param response - Response containing the JSON value in `response.parsedBody`
+ * @param nameProperties - The set of 'name' properties to be constructed on the
  * resultant object e.g., QueueName, TopicName, etc.
  * */
-function parseAtomResult(response: HttpOperationResponse, nameProperties: string[]): void {
+function parseAtomResult(response: FullOperationResponse, nameProperties: string[]): void {
   const atomResponseInJson = response.parsedBody;
 
   let result: any;
@@ -164,7 +223,7 @@ function parseAtomResult(response: HttpOperationResponse, nameProperties: string
 
   if (result) {
     if (Array.isArray(result)) {
-      result.forEach((entry: object) => {
+      result.forEach((entry) => {
         setName(entry, nameProperties);
       });
     } else {
@@ -174,26 +233,26 @@ function parseAtomResult(response: HttpOperationResponse, nameProperties: string
     return;
   }
 
-  log.error(
+  logger.warning(
     "Failure in parsing response body from service. Expected response to be in Atom XML format and have either feed or entry components, but received - %0",
     atomResponseInJson
   );
   throw new RestError(
     "Error occurred while parsing the response body - expected the service to return atom xml content with either feed or entry elements.",
-    RestError.PARSE_ERROR,
-    response.status,
-    stripRequest(response.request),
-    stripResponse(response)
+    {
+      code: RestError.PARSE_ERROR,
+      statusCode: response.status,
+      request: response.request,
+      response,
+    }
   );
 }
 
 /**
  * @internal
- * @ignore
  * Utility to help parse given `entry` result
- * @param entry
  */
-function parseEntryResult(entry: any): object | undefined {
+function parseEntryResult(entry: any): Record<string, unknown> | undefined {
   let result: any;
 
   if (
@@ -205,7 +264,7 @@ function parseEntryResult(entry: any): object | undefined {
     return undefined;
   }
 
-  const contentElementNames = Object.keys(entry.content).filter(function(key) {
+  const contentElementNames = Object.keys(entry.content).filter(function (key) {
     return key !== Constants.XML_METADATA_MARKER;
   });
 
@@ -238,12 +297,29 @@ function parseEntryResult(entry: any): object | undefined {
 
 /**
  * @internal
- * @ignore
- * Utility to help parse given `feed` result
- * @param feed
+ * Utility to help parse link info from the given `feed` result
  */
-function parseFeedResult(feed: any): object[] {
-  const result = [];
+function parseLinkInfo(
+  feedLink: { [Constants.XML_METADATA_MARKER]: { rel: string; href: string } }[],
+  relationship: "self" | "next"
+): string | undefined {
+  if (!feedLink || !Array.isArray(feedLink)) {
+    return undefined;
+  }
+  for (const linkInfo of feedLink) {
+    if (linkInfo[Constants.XML_METADATA_MARKER].rel === relationship) {
+      return linkInfo[Constants.XML_METADATA_MARKER].href;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * @internal
+ * Utility to help parse given `feed` result
+ */
+function parseFeedResult(feed: any): Record<string, unknown>[] & { nextLink?: string } {
+  const result: Record<string, unknown>[] & { nextLink?: string } = [];
   if (typeof feed === "object" && feed != null && feed.entry) {
     if (Array.isArray(feed.entry)) {
       feed.entry.forEach((entry: any) => {
@@ -258,10 +334,14 @@ function parseFeedResult(feed: any): object[] {
         result.push(parsedEntryResult);
       }
     }
+    result.nextLink = parseLinkInfo(feed.link, "next");
   }
   return result;
 }
 
+/**
+ * @internal
+ */
 function isKnownResponseCode(
   statusCode: number
 ): statusCode is keyof typeof Constants.HttpResponseCodes {
@@ -270,7 +350,6 @@ function isKnownResponseCode(
 
 /**
  * @internal
- * @ignore
  * Extracts the applicable entity name(s) from the URL based on the known structure
  * and instantiates the corresponding name properties to the deserialized response
  *
@@ -283,8 +362,6 @@ function isKnownResponseCode(
  *     - `<namespace-component>/<topic-name>/Subscriptions/<subscription-name>`
  *     - `<namespace-component>/<any-entity-name>`
  *
- * @param entry
- * @param nameProperties
  */
 function setName(entry: any, nameProperties: any): any {
   if (entry[Constants.ATOM_METADATA_MARKER]) {
@@ -330,19 +407,19 @@ function setName(entry: any, nameProperties: any): any {
 
 /**
  * @internal
- * @ignore
  * Utility to help construct the normalized `RestError` object based on given error
  * information and other data present in the received `response` object.
- * @param response
  */
-export function buildError(response: HttpOperationResponse): RestError {
+export function buildError(response: FullOperationResponse): RestError {
   if (!isKnownResponseCode(response.status)) {
     throw new RestError(
       `Service returned an error response with an unrecognized HTTP status code - ${response.status}`,
-      "ServiceError",
-      response.status,
-      stripRequest(response.request),
-      stripResponse(response)
+      {
+        code: "ServiceError",
+        statusCode: response.status,
+        request: response.request,
+        response,
+      }
     );
   }
 
@@ -352,9 +429,9 @@ export function buildError(response: HttpOperationResponse): RestError {
     errorMessage = errorBody;
   } else {
     if (
-      errorBody == undefined ||
-      errorBody.Error == undefined ||
-      errorBody.Error.Detail == undefined
+      !isDefined(errorBody) ||
+      !isDefined(errorBody.Error) ||
+      !isDefined(errorBody.Error.Detail)
     ) {
       errorMessage =
         "Detailed error message information not available. Look at the 'code' property on error for more information.";
@@ -365,37 +442,33 @@ export function buildError(response: HttpOperationResponse): RestError {
 
   const errorCode = getErrorCode(response, errorMessage);
 
-  const error: RestError = new RestError(
-    errorMessage,
-    errorCode,
-    response.status,
-    stripRequest(response.request),
-    stripResponse(response)
-  );
+  const error: RestError = new RestError(errorMessage, {
+    code: errorCode,
+    statusCode: response.status,
+    request: response.request,
+    response,
+  });
   return error;
 }
 
 /**
  * @internal
- * @ignore
  * Helper utility to construct user friendly error codes based on based on given error
  * information and other data present in the received `response` object.
- * @param response
- * @param errorMessage
  */
-function getErrorCode(response: HttpOperationResponse, errorMessage: string): string {
-  if (response.status == 401) {
+function getErrorCode(response: PipelineResponse, errorMessage: string): string {
+  if (response.status === 401) {
     return "UnauthorizedRequestError";
   }
-  if (response.status == 404) {
+  if (response.status === 404) {
     return "MessageEntityNotFoundError";
   }
-  if (response.status == 409) {
-    if (response.request.method == "DELETE") {
+  if (response.status === 409) {
+    if (response.request.method === "DELETE") {
       return "ServiceError";
     }
 
-    if (response.request.method == "PUT" && response.request.headers.get("If-Match") == "*") {
+    if (response.request.method === "PUT" && response.request.headers.get("If-Match") === "*") {
       return "ServiceError";
     }
 
@@ -406,18 +479,18 @@ function getErrorCode(response: HttpOperationResponse, errorMessage: string): st
     return "MessageEntityAlreadyExistsError";
   }
 
-  if (response.status == 403) {
+  if (response.status === 403) {
     if (errorMessage && errorMessage.toLowerCase().includes("subcode=40301")) {
       return "InvalidOperationError";
     }
     return "QuotaExceededError";
   }
 
-  if (response.status == 400) {
+  if (response.status === 400) {
     return "ServiceError";
   }
 
-  if (response.status == 503) {
+  if (response.status === 503) {
     return "ServerBusyError";
   }
 

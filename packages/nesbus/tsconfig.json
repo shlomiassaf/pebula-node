@@ -6,7 +6,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "skipLibCheck": true
   },
   "include": [ "src", "index.ts", "tasks", "arm-adapter" ],
   "exclude": [ "tests", "**/*spec.ts"]

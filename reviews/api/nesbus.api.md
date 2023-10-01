@@ -4,36 +4,40 @@
 
 ```ts
 
+import { AmqpAnnotatedMessage } from '@azure/core-amqp';
 import { BaseRpcContext } from '@nestjs/microservices/ctx-host/base-rpc.context';
 import { CallHandler } from '@nestjs/common';
+import { CommonClientOptions } from '@azure/core-client';
 import { Ctx } from '@nestjs/microservices';
 import { CustomTransportStrategy } from '@nestjs/microservices';
+import { DefaultAzureCredential } from '@azure/identity';
 import { DynamicModule } from '@nestjs/common';
 import { FactoryProvider } from '@nestjs/common';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
 import { LoggerService } from '@nestjs/common';
 import { MessageHandler } from '@nestjs/microservices';
-import { MessageHandlerOptions } from '@azure/service-bus';
 import { MessagingError } from '@azure/service-bus';
 import { ModulesContainer } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { OnModuleDestroy } from '@nestjs/common';
 import { OnModuleInit } from '@nestjs/common';
+import { OperationOptionsBase } from '@azure/service-bus';
 import { OperatorFunction } from 'rxjs';
 import { Payload } from '@nestjs/microservices';
 import { Provider } from '@nestjs/common';
-import { ProxySettings } from '@azure/core-http';
-import { ReceiveMode } from '@azure/service-bus';
-import { Receiver } from '@azure/service-bus';
-import { SendableMessageInfo } from '@azure/service-bus';
-import { Sender } from '@azure/service-bus';
 import { Server } from '@nestjs/microservices';
 import { ServiceBusClient } from '@azure/service-bus';
 import { ServiceBusClientOptions } from '@azure/service-bus';
 import { ServiceBusMessage } from '@azure/service-bus';
-import { SessionReceiver } from '@azure/service-bus';
-import { SessionReceiverOptions } from '@azure/service-bus';
-import { TokenProvider } from '@azure/service-bus';
+import { ServiceBusMessageBatch } from '@azure/service-bus';
+import { ServiceBusReceivedMessage } from '@azure/service-bus';
+import { ServiceBusReceiver } from '@azure/service-bus';
+import { ServiceBusReceiverOptions } from '@azure/service-bus';
+import { ServiceBusSender } from '@azure/service-bus';
+import { ServiceBusSessionReceiver } from '@azure/service-bus';
+import { ServiceBusSessionReceiverOptions } from '@azure/service-bus';
+import { SubscribeOptions } from '@azure/service-bus';
+import { TokenCredential } from '@azure/service-bus';
 import { Type } from '@nestjs/common';
 import { ValueProvider } from '@nestjs/common';
 
@@ -61,12 +65,14 @@ export const QueueEmitter: (metadata: MetaOrMetaFactory<SbQueueEmitterMetadataOp
 //
 // @public (undocumented)
 export class SbContext<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> extends BaseRpcContext<SbContextArgs<T>> {
-    constructor(args: SbContextArgs<T>);
+    constructor(args: SbContextArgs<T>, receiver: ServiceBusReceiver | ServiceBusSessionReceiver);
     entityName(): string;
     // (undocumented)
     getData<TBody = any>(): TBody;
     // (undocumented)
-    getMessage(): ServiceBusMessage;
+    getMessage(): ServiceBusReceivedMessage;
+    // (undocumented)
+    getReceiver(): ServiceBusReceiver | ServiceBusSessionReceiver;
     resolveClient(emitterReference?: SbEmitterRef): SbEmitterImp | undefined;
     // (undocumented)
     get type(): T;
@@ -75,17 +81,17 @@ export class SbContext<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberT
 // Warning: (ae-forgotten-export) The symbol "SbSubscriberMetadata" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbContextArgs<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> = [SbSubscriberMetadata<T>, ServiceBusMessage];
+export type SbContextArgs<T extends keyof SbSubscriberTypeMap = keyof SbSubscriberTypeMap> = [SbSubscriberMetadata<T>, ServiceBusReceivedMessage];
 
-// Warning: (ae-forgotten-export) The symbol "CorrelationFilter" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "CorrelationRuleFilter" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbCorrelationFilter = Partial<CorrelationFilter>;
+export type SbCorrelationFilter = Partial<CorrelationRuleFilter>;
 
 // @public
 export interface SbEmitterImp {
     // (undocumented)
-    send(message: SendableMessageInfo): Promise<void>;
+    sendMessages(messages: ServiceBusMessage | ServiceBusMessage[] | ServiceBusMessageBatch | AmqpAnnotatedMessage | AmqpAnnotatedMessage[], options?: OperationOptionsBase): Promise<void>;
 }
 
 // @public (undocumented)
@@ -133,10 +139,10 @@ export interface SbInterceptor<T = any, R = any> {
 }
 
 // Warning: (ae-forgotten-export) The symbol "SbConnectionOptions" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "ServiceBusAtomManagementClientOptions" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "ServiceBusAdministrationClientOptions" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export interface SbManagementClientAtomOptions extends SbConnectionOptions<ServiceBusConnectionStringCredentials, ServiceBusAtomManagementClientOptions> {
+export interface SbManagementClientAtomOptions extends SbConnectionOptions<ServiceBusConnectionStringCredentials, ServiceBusAdministrationClientOptions> {
     // (undocumented)
     defaults?: SbManagementDefaultsAdapter;
 }
@@ -178,10 +184,10 @@ export interface SbModuleRegisterOptions {
     servers: SbServerOptions[] | Omit<ValueProvider, 'provide'> | Omit<FactoryProvider, 'provide'>;
 }
 
-// Warning: (ae-forgotten-export) The symbol "QueueDetails" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "QueueProperties" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbQueue = Partial<Omit<QueueDetails, 'queueName'>>;
+export type SbQueue = Partial<Omit<QueueProperties, 'name'>>;
 
 // @public (undocumented)
 export interface SbQueueEmitterMetadataOptions extends SbEmitterMetadataOptions {
@@ -202,10 +208,10 @@ export interface SbQueueMetadataOptions extends SbSubscriberMetadataOptions {
     provision?: SbEntityProvisionOption<SbQueueEntityProvision>;
 }
 
-// Warning: (ae-forgotten-export) The symbol "RuleDetails" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "RuleProperties" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbRule = Partial<Omit<RuleDetails, 'createdOn'>>;
+export type SbRule = Partial<Omit<RuleProperties, 'createdAt'>>;
 
 // @public (undocumented)
 export interface SbRuleEntityProvision extends SbEntityProvision<SbRule> {
@@ -229,28 +235,30 @@ export interface SbServerOptions {
     registerHandlers?: 'sequence' | 'parallel';
 }
 
-// Warning: (ae-forgotten-export) The symbol "SqlFilter" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SqlRuleFilter" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbSqlFilter = Partial<Omit<SqlFilter, 'sqlParameters'>>;
+export type SbSqlFilter = Omit<SqlRuleFilter, 'sqlParameters'>;
 
 // @public (undocumented)
 export interface SbSubscriberMetadataOptions {
     // (undocumented)
-    handlerOptions?: MessageHandlerOptions;
+    handlerOptions?: ServiceBusReceiverOptions;
     // (undocumented)
     name: string;
     // (undocumented)
-    receiveMode: ReceiveMode;
+    receiveMode: 'peekLock' | 'receiveAndDelete';
     serverId?: string;
     // (undocumented)
-    sessionOptions?: SessionReceiverOptions;
+    sessionOptions?: ServiceBusSessionReceiverOptions;
+    // (undocumented)
+    subscribeOptions?: SubscribeOptions;
 }
 
-// Warning: (ae-forgotten-export) The symbol "SubscriptionDetails" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "SubscriptionProperties" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbSubscription = Partial<Omit<SubscriptionDetails, 'subscriptionName' | 'topicName'>>;
+export type SbSubscription = Partial<Omit<SubscriptionProperties, 'subscriptionName' | 'topicName'>>;
 
 // @public (undocumented)
 export interface SbSubscriptionMetadataOptions extends SbSubscriberMetadataOptions {
@@ -260,10 +268,10 @@ export interface SbSubscriptionMetadataOptions extends SbSubscriberMetadataOptio
     topicName: string;
 }
 
-// Warning: (ae-forgotten-export) The symbol "TopicDetails" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "TopicProperties" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
-export type SbTopic = Partial<Omit<TopicDetails, 'topicName'>>;
+export type SbTopic = Partial<Omit<TopicProperties, 'name'>>;
 
 // @public (undocumented)
 export interface SbTopicEntityProvision extends SbEntityProvision<SbTopic> {
@@ -285,7 +293,7 @@ export interface SbTopicSubscriptionEntityProvision extends SbEntityProvision<Sb
 
 // @public (undocumented)
 export interface ServiceBusAadTokenCredentials {
-    credentials: Parameters<typeof ServiceBusClient['createFromAadTokenCredentials']>[1];
+    credentials: DefaultAzureCredential;
     host: string;
 }
 
@@ -321,7 +329,7 @@ export interface ServiceBusTokenProviderCredentials {
     // (undocumented)
     host: string;
     // (undocumented)
-    tokenProvider: TokenProvider;
+    tokenProvider: TokenCredential;
 }
 
 // @public

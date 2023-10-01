@@ -1,6 +1,6 @@
 import { of, isObservable, OperatorFunction, Observable } from 'rxjs';
 import { mapTo } from 'rxjs/operators';
-import { ServiceBusMessage, Receiver, SessionReceiver, MessagingError } from '@azure/service-bus';
+import { ServiceBusReceiver, ServiceBusSessionReceiver, ServiceBusReceivedMessage } from '@azure/service-bus';
 import { MessageHandler } from '@nestjs/microservices';
 
 import { SbSubscriberRoutingContext, SbSubscriberTypeMap, RouteToCommit } from '../interfaces';
@@ -44,23 +44,24 @@ export abstract class SbSubscriberRouteHandler<T extends keyof SbSubscriberTypeM
       }
     }
 
+    const receiver = this.createReceiver(context, options);
     const messageHandler = routeInstructions.type === 'method'
-      ? this.createMethodHandler(routeInstructions.subscriber, handler as MessageHandler)
-      : this.createPipeHandler(routeInstructions.subscriber, handler as OperatorFunction<SbContext, SbContext>, routeInstructions)
+      ? this.createMethodHandler(routeInstructions.subscriber, handler as MessageHandler, receiver)
+      : this.createPipeHandler(routeInstructions.subscriber, handler as OperatorFunction<SbContext, SbContext>, routeInstructions, receiver)
     ;
-
+    
     try {
       await registerMessageHandler(
-        this.createReceiver(context, options),
-        messageHandler,
-        error => {
-          if (error instanceof WrappedError) {
-            context.errorHandler.onMessageError(new SbMessageErrorEvent(options, error.error));
+          receiver,
+          messageHandler,
+        async (errorArgs) => {
+          if (errorArgs.error instanceof WrappedError) {
+            context.errorHandler.onMessageError(new SbMessageErrorEvent(options, errorArgs.error));
           } else {
-            context.errorHandler.onError(new SbErrorEvent('listening', options, error));
+            context.errorHandler.onError(new SbErrorEvent('listening', options, errorArgs.error));
           }
         },
-        options.handlerOptions
+        options.subscribeOptions
       );
     } catch (error) {
       await context.errorHandler.onError(new SbErrorEvent('register', options, error));
@@ -68,19 +69,19 @@ export abstract class SbSubscriberRouteHandler<T extends keyof SbSubscriberTypeM
   }
 
   protected abstract async verify(options: SbSubscriberTypeMap[T], configurator: SbConfigurator): Promise<any>;
-  protected abstract createReceiver(context: SbSubscriberRoutingContext, options: SbSubscriberTypeMap[T]): Receiver | SessionReceiver;
+  protected abstract createReceiver(context: SbSubscriberRoutingContext, options: SbSubscriberTypeMap[T]): ServiceBusReceiver | ServiceBusSessionReceiver;
 
-  private createMethodHandler(metadata: SbSubscriberMetadata<T>, handler: MessageHandler<any, SbContext, any>) {
-    return async (message: ServiceBusMessage) => {
-      await handler(message.body, new SbContext([metadata, message])).then(safeResolveResult).catch(WrappedError.wrapPromise);
+  private createMethodHandler(metadata: SbSubscriberMetadata<T>, handler: MessageHandler<any, SbContext, any>, receiver: ServiceBusReceiver | ServiceBusSessionReceiver) {
+    return async (message: ServiceBusReceivedMessage) => {
+      await handler(message.body, new SbContext([metadata, message], receiver)).then(safeResolveResult).catch(WrappedError.wrapPromise);
     };
   }
 
-  private createPipeHandler(metadata: SbSubscriberMetadata<T>, handler: OperatorFunction<SbContext, SbContext>, routeInstructions: RouteToCommit) {
+  private createPipeHandler(metadata: SbSubscriberMetadata<T>, handler: OperatorFunction<SbContext, SbContext>, routeInstructions: RouteToCommit, receiver: ServiceBusReceiver | ServiceBusSessionReceiver) {
     const consumer = createConsumer(routeInstructions);
 
-    return async (message: ServiceBusMessage) => {
-      const context = new SbContext([metadata, message]);
+    return async (message: ServiceBusReceivedMessage) => {
+      const context = new SbContext([metadata, message], receiver);
       const done = async () => handler(of(context)).pipe(mapTo(context)).toPromise();
       await consumer.intercept(context, done).then(safeResolveResult).catch(WrappedError.wrapPromise);
     };

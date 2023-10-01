@@ -1,4 +1,4 @@
-import { delay, SendableMessageInfo, ServiceBusMessage } from '@azure/service-bus';
+import { delay, ServiceBusMessage } from '@azure/service-bus';
 
 /**
  * Maximum wait duration for the expected event to happen = `10000 ms`(default value is 10 seconds)(= maxWaitTimeInMilliseconds)
@@ -21,7 +21,7 @@ export async function checkWithTimeout(predicate: () => boolean,
 export class TestMessage {
   static sessionId: string = "my-session";
 
-  static getSample(msg: Partial<SendableMessageInfo> = {}): SendableMessageInfo {
+  static getSample(msg: Partial<ServiceBusMessage> = {}): ServiceBusMessage {
     const randomNumber = Math.random();
     return {
       body: `message body ${randomNumber}`,
@@ -29,8 +29,8 @@ export class TestMessage {
       contentType: `content type ${randomNumber}`,
       correlationId: `correlation id ${randomNumber}`,
       timeToLive: 60 * 60 * 24,
-      label: `label ${randomNumber}`,
-      userProperties: {
+      subject: `subject ${randomNumber}`,
+      applicationProperties: {
         propOne: 1,
         propTwo: "two",
         propThree: true
@@ -39,7 +39,7 @@ export class TestMessage {
     };
   }
 
-  static getSessionSample(msg: Partial<SendableMessageInfo> = {}): SendableMessageInfo {
+  static getSessionSample(msg: Partial<ServiceBusMessage> = {}): ServiceBusMessage {
     return {
       ...TestMessage.getSample(msg),
       sessionId: TestMessage.sessionId,
@@ -50,16 +50,16 @@ export class TestMessage {
    * Compares all the properties set on the given sent message with those
    * on the received message
    */
-  static checkMessageContents(sent: SendableMessageInfo,
+  static checkMessageContents(sent: ServiceBusMessage,
                               received: ServiceBusMessage,
                               useSessions?: boolean,
                               usePartitions?: boolean): void {
-    if (sent.userProperties) {
-      if (!received.userProperties) {
+    if (sent.applicationProperties) {
+      if (!received.applicationProperties) {
         throw new Error("Received message doesn't have any user properties");
       }
-      const expectedUserProperties = sent.userProperties;
-      const receivedUserProperties = received.userProperties;
+      const expectedUserProperties = sent.applicationProperties;
+      const receivedUserProperties = received.applicationProperties;
       for (const [key, value] of Object.entries(expectedUserProperties)) {
         try {
           expect(receivedUserProperties[key]).toEqual(value);
@@ -69,7 +69,7 @@ export class TestMessage {
       }
     }
 
-    const keys: (keyof SendableMessageInfo & keyof ServiceBusMessage)[] = [
+    const keys: (keyof ServiceBusMessage)[] = [
       'body',
       'messageId',
       'contentType',
