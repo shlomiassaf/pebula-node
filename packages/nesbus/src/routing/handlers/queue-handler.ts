@@ -11,7 +11,7 @@ export class QueueRouteHandler extends SbSubscriberRouteHandler<'queue'> {
   }
 
   protected createReceiver(context: SbSubscriberRoutingContext, options: SbQueueMetadataOptions) {
-    const { name, receiveMode, sessionOptions } = options;
-    return context.channelManager.getCreateQueryReceiver(name, receiveMode, sessionOptions);
+    const { name, receiveMode, sessionOptions, handlerOptions } = options;
+    return context.channelManager.getCreateQueryReceiver(name, receiveMode, sessionOptions ?? handlerOptions);
   }
 }

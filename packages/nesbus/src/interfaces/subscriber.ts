@@ -1,11 +1,12 @@
-import { ReceiveMode, SessionReceiverOptions, MessageHandlerOptions } from '@azure/service-bus';
+import { ServiceBusSessionReceiverOptions, ServiceBusReceiverOptions, SubscribeOptions } from '@azure/service-bus';
 import { SbEntityProvisionOption, SbQueueEntityProvision, SbTopicSubscriptionEntityProvision } from './entity-provision';
 
 export interface SbSubscriberMetadataOptions {
   name: string;
-  receiveMode: ReceiveMode;
-  handlerOptions?: MessageHandlerOptions;
-  sessionOptions?: SessionReceiverOptions;
+  receiveMode: 'peekLock' | 'receiveAndDelete';
+  handlerOptions?: ServiceBusReceiverOptions;
+  sessionOptions?: ServiceBusSessionReceiverOptions;
+  subscribeOptions?: SubscribeOptions;
 
   /**
    * The unique id of the server that this emitter should use as the underlying listener.

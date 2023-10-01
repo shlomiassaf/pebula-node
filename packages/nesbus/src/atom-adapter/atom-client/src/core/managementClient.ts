@@ -1,80 +1,96 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 import Long from "long";
 import {
   EventContext,
-  SenderEvents,
-  ReceiverEvents,
-  SenderOptions,
   ReceiverOptions,
-  types,
   message as RheaMessageUtil,
+  SenderOptions,
   generate_uuid,
-  string_to_uuid
+  string_to_uuid,
+  types,
+  Typed,
+  ReceiverEvents,
+  Message as RheaMessage,
 } from "rhea-promise";
 import {
-  defaultLock,
-  translate,
-  Constants,
-  RequestResponseLink,
   ConditionErrorNameMapper,
-  AmqpMessage,
-  SendRequestOptions
-} from "@azure/amqp-common";
-import { ClientEntityContext } from "../clientEntityContext";
+  Constants,
+  defaultCancellableLock,
+  MessagingError,
+  RequestResponseLink,
+  SendRequestOptions,
+  RetryOptions,
+  AmqpAnnotatedMessage,
+} from "@azure/core-amqp";
+import { ConnectionContext } from "../connectionContext";
 import {
-  ReceivedMessageInfo,
+  DispositionType,
+  ServiceBusReceivedMessage,
   ServiceBusMessage,
-  SendableMessageInfo,
-  DispositionStatus,
-  toAmqpMessage,
-  getMessagePropertyTypeMismatchError
+  ServiceBusMessageImpl,
+  toRheaMessage,
+  fromRheaMessage,
+  updateScheduledTime,
+  updateMessageId,
 } from "../serviceBusMessage";
-import { LinkEntity } from "./linkEntity";
-import * as log from "../log";
-import { ReceiveMode, fromAmqpMessage } from "../serviceBusMessage";
-import { toBuffer } from "../util/utils";
+import { LinkEntity, RequestResponseLinkOptions } from "./linkEntity";
+import { managementClientLogger, receiverLogger, senderLogger, ServiceBusLogger } from "../log";
+import { toBuffer, waitForSendable } from "../util/utils";
 import {
+  InvalidMaxMessageCountError,
   throwErrorIfConnectionClosed,
+  throwTypeErrorIfParameterIsEmptyString,
   throwTypeErrorIfParameterMissing,
   throwTypeErrorIfParameterNotLong,
   throwTypeErrorIfParameterTypeMismatch,
-  throwTypeErrorIfParameterIsEmptyString
 } from "../util/errors";
-import { Typed } from "rhea-promise";
 import { max32BitNumber } from "../util/constants";
 import { Buffer } from "buffer";
+import { OperationOptionsBase } from "./../modelsToBeSharedWithEventHubs";
+import { AbortController, AbortSignalLike } from "@azure/abort-controller";
+import { ReceiveMode } from "../models";
+import { translateServiceBusError } from "../serviceBusError";
+import { defaultDataTransformer, tryToJsonDecode } from "../dataTransformer";
+import { delay, isDefined, isObjectWithProperties } from "@azure/core-util";
+import {
+  RuleProperties,
+  SqlRuleAction,
+  SqlRuleFilter,
+} from "../serializers/ruleResourceSerializer";
+import { ListRequestOptions } from "../serviceBusAtomManagementClient";
 
 /**
- * Represents a Rule on a Subscription that is used to filter the incoming message from the
- * Subscription.
+ * @internal
  */
-export interface RuleDescription {
+export interface SendManagementRequestOptions extends SendRequestOptions {
   /**
-   * Filter expression used to match messages. Supports 2 types:
-   * - `string`: SQL-like condition expression that is evaluated against the messages'
-   * user-defined properties and system properties. All system properties will be prefixed with
-   * `sys.` in the condition expression.
-   * - `CorrelationFilter`: Properties of the filter will be used to match with the message properties.
+   * The name of the sender or receiver link associated with the managmenet operations.
+   * This is used for service side optimization.
    */
-  filter?: string | CorrelationFilter;
+  associatedLinkName?: string;
   /**
-   * Action to perform if the message satisfies the filtering expression.
+   * Option to disable the client from running JSON.parse() on the message body when receiving the message.
+   * Not applicable if the message was sent with AMQP body type value or sequence. Use this option when you
+   * prefer to work directly with the bytes present in the message body than have the client attempt to parse it.
    */
-  action?: string;
+  skipParsingBodyAsJson?: boolean;
   /**
-   * Represents the name of the rule.
+   * Whether to skip converting Date type on properties of message annotations
+   * or application properties into numbers when receiving the message. By
+   * default, properties of Date type is converted into UNIX epoch number for
+   * compatibility.
    */
-  name: string;
+  skipConvertingDate?: boolean;
 }
 
 /**
  * Represents the correlation filter expression.
- * A CorrelationFilter holds a set of conditions that are matched against user and system properties
+ * A CorrelationRuleFilter holds a set of conditions that are matched against user and system properties
  * of incoming messages from a Subscription.
  */
-export interface CorrelationFilter {
+export interface CorrelationRuleFilter {
   /**
    * Value to be matched with the `correlationId` property of the incoming message.
    */
@@ -92,9 +108,9 @@ export interface CorrelationFilter {
    */
   replyTo?: string;
   /**
-   * Value to be matched with the `label` property of the incoming message.
+   * Value to be matched with the `subject` property of the incoming message.
    */
-  label?: string;
+  subject?: string;
   /**
    * Value to be matched with the `sessionId` property of the incoming message.
    */
@@ -110,38 +126,64 @@ export interface CorrelationFilter {
   /**
    * Value to be matched with the user properties of the incoming message.
    */
-  userProperties?: any;
+  applicationProperties?: { [key: string]: string | number | boolean | Date };
 }
 
+/**
+ * @internal
+ */
+const sqlRuleProperties = ["sqlExpression"];
+
+function isSqlRuleFilter(obj: unknown): obj is SqlRuleFilter {
+  if (obj) {
+    return sqlRuleProperties.some((validProperty) => isObjectWithProperties(obj, [validProperty]));
+  }
+
+  return false;
+}
+
+/**
+ * @internal
+ */
 const correlationProperties = [
   "correlationId",
   "messageId",
   "to",
   "replyTo",
-  "label",
+  "subject",
   "sessionId",
   "replyToSessionId",
   "contentType",
-  "userProperties"
+  "applicationProperties",
 ];
+
+function isCorrelationRuleFilter(obj: unknown): obj is CorrelationRuleFilter {
+  if (obj) {
+    return correlationProperties.some((validProperty) =>
+      isObjectWithProperties(obj, [validProperty])
+    );
+  }
+
+  return false;
+}
 
 /**
  * @internal
  * Options to set when updating the disposition status
  */
-export interface DispositionStatusOptions {
+export interface DispositionStatusOptions extends OperationOptionsBase {
   /**
-   * @property [propertiesToModify] A dictionary of Service Bus brokered message properties
+   * A map of Service Bus brokered message properties
    * to modify.
    */
   propertiesToModify?: { [key: string]: any };
   /**
-   * @property [deadLetterReason] The deadletter reason. May be set if disposition status
+   * The deadletter reason. May be set if disposition status
    * is set to suspended.
    */
   deadLetterReason?: string;
   /**
-   * @property [deadLetterDescription] The deadletter description. May be set if disposition status
+   * The deadletter description. May be set if disposition status
    * is set to suspended.
    */
   deadLetterDescription?: string;
@@ -149,6 +191,10 @@ export interface DispositionStatusOptions {
    * This should only be provided if `session` is enabled for a Queue or Topic.
    */
   sessionId?: string;
+  /**
+   * Retry options.
+   */
+  retryOptions: RetryOptions | undefined;
 }
 
 /**
@@ -162,115 +208,164 @@ export interface ManagementClientOptions {
 
 /**
  * @internal
- * @class ManagementClient
- * Descibes the ServiceBus Management Client that talks
+ * Describes the ServiceBus Management Client that talks
  * to the $management endpoint over AMQP connection.
  */
-export class ManagementClient extends LinkEntity {
-  readonly managementLock: string = `${Constants.managementRequestKey}-${generate_uuid()}`;
+export class ManagementClient extends LinkEntity<RequestResponseLink> {
   /**
-   * @property {string} entityPath - The name/path of the entity (queue/topic/subscription name)
-   * for which the management request needs to be made.
-   */
-  entityPath: string;
-  /**
-   * @property {string} replyTo The reply to Guid for the management client.
+   * The reply to Guid for the management client.
    */
   replyTo: string = generate_uuid();
   /**
-   * @property $management sender, receiver on the same session.
-   * @private
-   */
-  private _mgmtReqResLink?: RequestResponseLink;
-  /**
-   * @property _lastPeekedSequenceNumber Provides the sequence number of the last peeked message.
-   * @private
+   * Provides the sequence number of the last peeked message.
    */
   private _lastPeekedSequenceNumber: Long = Long.ZERO;
-
   /**
-   * @constructor
+   * lock token for init operation
+   */
+  private _initLock: string = generate_uuid();
+  /**
    * Instantiates the management client.
-   * @param {ClientEntityContext} context The client entity context.
-   * @param {ManagementClientOptions} [options] Options to be provided for creating the
+   * @param context - The connection context
+   * @param entityPath - The name/path of the entity (queue/topic/subscription name)
+   * for which the management request needs to be made.
+   * @param options - Options to be provided for creating the
    * "$management" client.
    */
-  constructor(context: ClientEntityContext, options?: ManagementClientOptions) {
-    super(`${context.entityPath}/$management`, context, {
+  constructor(context: ConnectionContext, entityPath: string, options?: ManagementClientOptions) {
+    super(`${entityPath}/$management`, entityPath, context, "mgmt", managementClientLogger, {
       address: options && options.address ? options.address : Constants.management,
       audience:
         options && options.audience
           ? options.audience
-          : `${context.namespace.config.endpoint}${context.entityPath}/$management`
+          : `${context.config.endpoint}${entityPath}/$management`,
     });
     this._context = context;
-    this.entityPath = context.namespace.config.entityPath as string;
   }
 
-  private async _init(): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-    try {
-      if (!this._isMgmtRequestResponseLinkOpen()) {
-        await this._negotiateClaim();
-        const rxopt: ReceiverOptions = {
-          source: { address: this.address },
-          name: this.replyTo,
-          target: { address: this.replyTo },
-          onSessionError: (context: EventContext) => {
-            const id = context.connection.options.id;
-            const ehError = translate(context.session!.error!);
-            log.error(
-              "[%s] An error occurred on the session for request/response links for " +
-                "$management: %O",
-              id,
-              ehError
-            );
-          }
+  /**
+   * initialize link with unique this.replyTo address.
+   * @param options -
+   * @returns updated options bag that has adjusted `timeoutInMs` to account for init time
+   */
+  private async initWithUniqueReplyTo(
+    options: SendManagementRequestOptions = {}
+  ): Promise<SendManagementRequestOptions> {
+    const retryTimeoutInMs = options.timeoutInMs ?? Constants.defaultOperationTimeoutInMs;
+    const initOperationStartTime = Date.now();
+    return defaultCancellableLock.acquire(
+      this._initLock,
+      async () => {
+        managementClientLogger.verbose(
+          `${this.logPrefix} lock acquired for initializing replyTo address and link`
+        );
+        if (!this.isOpen()) {
+          this.replyTo = generate_uuid();
+          managementClientLogger.verbose(
+            `${this.logPrefix} new replyTo address: ${this.replyTo} generated`
+          );
+        }
+        const { abortSignal } = options ?? {};
+        const aborter = new AbortController();
+        const { signal } = new AbortController([
+          aborter.signal,
+          ...(abortSignal ? [abortSignal] : []),
+        ]);
+
+        if (!this.isOpen()) {
+          await Promise.race([
+            this._init(signal),
+            delay(retryTimeoutInMs, { abortSignal: aborter.signal }).then(() => {
+              throw {
+                name: "OperationTimeoutError",
+                message: "The management request timed out. Please try again later.",
+              };
+            }),
+          ]).finally(() => aborter.abort());
+        }
+
+        // time taken by the init operation
+        const timeTakenByInit = Date.now() - initOperationStartTime;
+        return {
+          ...options,
+          // Left over time
+          timeoutInMs: retryTimeoutInMs - timeTakenByInit,
         };
-        const sropt: SenderOptions = { target: { address: this.address } };
-        log.mgmt(
-          "[%s] Creating sender/receiver links on a session for $management endpoint with " +
-            "srOpts: %o, receiverOpts: %O.",
-          this._context.namespace.connectionId,
-          sropt,
-          rxopt
-        );
-        this._mgmtReqResLink = await RequestResponseLink.create(
-          this._context.namespace.connection,
-          sropt,
-          rxopt
-        );
-        this._mgmtReqResLink.sender.on(SenderEvents.senderError, (context: EventContext) => {
-          const id = context.connection.options.id;
-          const ehError = translate(context.sender!.error!);
-          log.error("[%s] An error occurred on the $management sender link.. %O", id, ehError);
-        });
-        this._mgmtReqResLink.receiver.on(ReceiverEvents.receiverError, (context: EventContext) => {
-          const id = context.connection.options.id;
-          const ehError = translate(context.receiver!.error!);
-          log.error("[%s] An error occurred on the $management receiver link.. %O", id, ehError);
-        });
-        log.mgmt(
-          "[%s] Created sender '%s' and receiver '%s' links for $management endpoint.",
-          this._context.namespace.connectionId,
-          this._mgmtReqResLink.sender.name,
-          this._mgmtReqResLink.receiver.name
-        );
-        await this._ensureTokenRenewal();
+      },
+      {
+        abortSignal: options.abortSignal,
+        timeoutInMs: retryTimeoutInMs,
       }
-    } catch (err) {
-      err = translate(err);
-      log.error(
-        "[%s] An error occured while establishing the $management links: %O",
-        this._context.namespace.connectionId,
-        err
+    );
+  }
+
+  private async _init(abortSignal?: AbortSignalLike): Promise<void> {
+    throwErrorIfConnectionClosed(this._context);
+    try {
+      const rxopt: ReceiverOptions = {
+        source: { address: this.address },
+        name: this.replyTo,
+        target: { address: this.replyTo },
+        onSessionError: (context: EventContext) => {
+          const sbError = translateServiceBusError(context.session!.error!);
+          managementClientLogger.logError(
+            sbError,
+            `${this.logPrefix} An error occurred on the session for request/response links for $management`
+          );
+        },
+      };
+      const sropt: SenderOptions = {
+        target: { address: this.address },
+        onError: (context: EventContext) => {
+          const ehError = translateServiceBusError(context.sender!.error!);
+          managementClientLogger.logError(
+            ehError,
+            `${this.logPrefix} An error occurred on the $management sender link`
+          );
+        },
+      };
+
+      // Even if multiple parallel requests reach here, the initLink secures a lock
+      // to ensure there won't be multiple initializations
+      await this.initLink(
+        {
+          senderOptions: sropt,
+          receiverOptions: rxopt,
+        },
+        abortSignal
       );
-      throw err;
+    } catch (err) {
+      const translatedError = translateServiceBusError(err);
+      managementClientLogger.logError(
+        translatedError,
+        `${this.logPrefix} An error occurred while establishing the $management links`
+      );
+      throw translatedError;
     }
   }
 
-  private _isMgmtRequestResponseLinkOpen(): boolean {
-    return this._mgmtReqResLink! && this._mgmtReqResLink!.isOpen();
+  protected async createRheaLink(
+    // eslint-disable-next-line @azure/azure-sdk/ts-naming-options
+    options: RequestResponseLinkOptions
+  ): Promise<RequestResponseLink> {
+    const rheaLink = await RequestResponseLink.create(
+      this._context.connection,
+      options.senderOptions,
+      options.receiverOptions
+    );
+    // Attach listener for the `receiver_error` events to log the errors.
+
+    // "message" event listener is added in core-amqp.
+    // "rhea" doesn't allow setting only the "onError" handler in the options if it is not accompanied by an "onMessage" handler.
+    // Hence, not passing onError handler in the receiver options, adding a handler below.
+    rheaLink.receiver.on(ReceiverEvents.receiverError, (context: EventContext) => {
+      const ehError = translateServiceBusError(context.receiver!.error!);
+      managementClientLogger.logError(
+        ehError,
+        `${this.logPrefix} An error occurred on the $management receiver link`
+      );
+    });
+    return rheaLink;
   }
 
   /**
@@ -282,50 +377,73 @@ export class ManagementClient extends LinkEntity {
       : undefined;
   }
 
-  /**
-   * Helper function to retrieve active receiver name, if it exists.
-   * @param clientEntityContext The `ClientEntityContext` associated with given Service Bus entity client
-   * @param sessionId `sessionId` if applicable
-   */
-  private _getAssociatedReceiverName(
-    clientEntityContext: ClientEntityContext,
-    sessionId?: string
-  ): string | undefined {
-    if (sessionId != undefined) {
-      if (clientEntityContext.messageSessions[sessionId]) {
-        return clientEntityContext.messageSessions[sessionId].name;
-      }
+  private _decodeApplicationPropertiesMap(
+    obj: Typed
+  ): Record<string, string | number | boolean | Date> {
+    if (!types.is_map(obj)) {
+      throw new Error("object to decode is not of Map types");
     }
-    if (clientEntityContext.batchingReceiver) {
-      return clientEntityContext.batchingReceiver.name;
+    const array = obj.value as Array<Typed>;
+    const result: Record<string, string | number | boolean | Date> = {};
+    for (let i = 0; i < array.length; i += 2) {
+      const key = array[i].value as string;
+      result[key] = array[i + 1].value as string | number | boolean | Date;
     }
-    if (clientEntityContext.streamingReceiver) {
-      return clientEntityContext.streamingReceiver.name;
+
+    return result;
+  }
+
+  private async _makeManagementRequest(
+    request: RheaMessage,
+    internalLogger: ServiceBusLogger,
+    sendRequestOptions: SendManagementRequestOptions = {}
+  ): Promise<RheaMessage> {
+    if (request.message_id === undefined) {
+      request.message_id = generate_uuid();
     }
-    return;
+
+    try {
+      const { timeoutInMs } = sendRequestOptions;
+      await waitForSendable(
+        internalLogger,
+        this.logPrefix,
+        this.name,
+        timeoutInMs ?? Constants.defaultOperationTimeoutInMs,
+        this.link?.sender,
+        this.link?.session?.outgoing?.available()
+      );
+
+      return await this.link!.sendRequest(request, sendRequestOptions);
+    } catch (err) {
+      const translatedError = translateServiceBusError(err);
+      internalLogger.logError(
+        translatedError,
+        "%s An error occurred during send on management request-response link with address '%s'",
+        this.logPrefix,
+        this.address
+      );
+      throw translatedError;
+    }
   }
 
   /**
    * Closes the AMQP management session to the ServiceBus namespace for this client,
    * returning a promise that will be resolved when disconnection is completed.
-   * @return Promise<void>
    */
   async close(): Promise<void> {
     try {
       // Always clear the timeout, as the isOpen check may report
       // false without ever having cleared the timeout otherwise.
-      clearTimeout(this._tokenRenewalTimer as NodeJS.Timer);
-      if (this._isMgmtRequestResponseLinkOpen()) {
-        const mgmtLink = this._mgmtReqResLink;
-        this._mgmtReqResLink = undefined;
-        await mgmtLink!.close();
-        log.mgmt("Successfully closed the management session.");
-      }
+
+      // NOTE: management link currently doesn't have a separate concept of "detaching" like
+      // the other links do. When we add handling of this (via the onDetached call, like other links)
+      // we can change this back to closeLink("permanent").
+      await this.closeLink();
+      managementClientLogger.verbose("Successfully closed the management session.");
     } catch (err) {
-      log.error(
-        "[%s] An error occurred while closing the management session: %O.",
-        this._context.namespace.connectionId,
-        err
+      managementClientLogger.logError(
+        err,
+        `${this.logPrefix} An error occurred while closing the management session`
       );
       throw err;
     }
@@ -339,12 +457,23 @@ export class ManagementClient extends LinkEntity {
    * Unlike a `received` message, `peeked` message will not have lock token associated with it,
    * and hence it cannot be `Completed/Abandoned/Deferred/Deadlettered/Renewed`. This method will
    * also fetch even Deferred messages (but not Deadlettered message).
-   * @param {number} [messageCount] The number of messages to retrieve. Default value `1`.
-   * @returns Promise<ReceivedSBMessage[]>
+   *
+   * @param messageCount - The number of messages to retrieve. Default value `1`.
+   * @param omitMessageBody - Whether to omit message body when peeking. Default value `false`.
    */
-  async peek(messageCount?: number): Promise<ReceivedMessageInfo[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-    return this.peekBySequenceNumber(this._lastPeekedSequenceNumber.add(1), messageCount);
+  async peek(
+    messageCount: number,
+    omitMessageBody?: boolean,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<ServiceBusReceivedMessage[]> {
+    throwErrorIfConnectionClosed(this._context);
+    return this.peekBySequenceNumber(
+      this._lastPeekedSequenceNumber.add(1),
+      messageCount,
+      undefined,
+      omitMessageBody,
+      options
+    );
   }
 
   /**
@@ -355,107 +484,123 @@ export class ManagementClient extends LinkEntity {
    * Unlike a `received` message, `peeked` message will not have lock token associated with it,
    * and hence it cannot be `Completed/Abandoned/Deferred/Deadlettered/Renewed`.  This method will
    * also fetch even Deferred messages (but not Deadlettered message).
-   * @param {string} sessionId The sessionId from which messages need to be peeked.
-   * @param {number} [messageCount] The number of messages to retrieve. Default value `1`.
-   * @returns Promise<ReceivedMessageInfo[]>
+   *
+   * @param sessionId - The sessionId from which messages need to be peeked.
+   * @param messageCount - The number of messages to retrieve. Default value `1`.
+   * @param omitMessageBody - Whether to omit message body when peeking Default value `false`.
    */
   async peekMessagesBySession(
     sessionId: string,
-    messageCount?: number
-  ): Promise<ReceivedMessageInfo[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+    messageCount: number,
+    omitMessageBody?: boolean,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<ServiceBusReceivedMessage[]> {
+    throwErrorIfConnectionClosed(this._context);
     return this.peekBySequenceNumber(
       this._lastPeekedSequenceNumber.add(1),
       messageCount,
-      sessionId
+      sessionId,
+      omitMessageBody,
+      options
     );
   }
 
   /**
    * Peeks the desired number of messages from the specified sequence number.
-   * @param {Long} fromSequenceNumber The sequence number from where to read the message.
-   * @param {number} messageCount The number of messages to retrieve. Default value `1`.
-   * @param {string} sessionId The sessionId from which messages need to be peeked.
-   * @returns Promise<ReceivedMessageInfo[]>
+   *
+   * @param fromSequenceNumber - The sequence number from where to read the message.
+   * @param messageCount - The number of messages to retrieve. Default value `1`.
+   * @param sessionId - The sessionId from which messages need to be peeked.
+   * @param omitMessageBody - Whether to omit message body when peeking. Default value `false`.
    */
   async peekBySequenceNumber(
     fromSequenceNumber: Long,
-    maxMessageCount?: number,
-    sessionId?: string
-  ): Promise<ReceivedMessageInfo[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-    const connId = this._context.namespace.connectionId;
+    maxMessageCount: number,
+    sessionId?: string,
+    omitMessageBody?: boolean,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<ServiceBusReceivedMessage[]> {
+    throwErrorIfConnectionClosed(this._context);
+    const connId = this._context.connectionId;
 
     // Checks for fromSequenceNumber
     throwTypeErrorIfParameterMissing(connId, "fromSequenceNumber", fromSequenceNumber);
     throwTypeErrorIfParameterNotLong(connId, "fromSequenceNumber", fromSequenceNumber);
 
     // Checks for maxMessageCount
-    if (maxMessageCount !== undefined) {
-      throwTypeErrorIfParameterTypeMismatch(connId, "maxMessageCount", maxMessageCount, "number");
-      if (maxMessageCount <= 0) {
-        return [];
-      }
-    } else {
-      maxMessageCount = 1;
+    throwTypeErrorIfParameterMissing(
+      this._context.connectionId,
+      "maxMessageCount",
+      maxMessageCount
+    );
+    throwTypeErrorIfParameterTypeMismatch(
+      this._context.connectionId,
+      "maxMessageCount",
+      maxMessageCount,
+      "number"
+    );
+
+    if (isNaN(maxMessageCount) || maxMessageCount < 1) {
+      throw new TypeError(InvalidMaxMessageCountError);
     }
 
-    const messageList: ReceivedMessageInfo[] = [];
+    const messageList: ServiceBusReceivedMessage[] = [];
     try {
       const messageBody: any = {};
       messageBody[Constants.fromSequenceNumber] = types.wrap_long(
         Buffer.from(fromSequenceNumber.toBytesBE())
       );
-      messageBody[Constants.messageCount] = types.wrap_int(maxMessageCount);
-      if (sessionId != undefined) {
+      messageBody[Constants.messageCount] = types.wrap_int(maxMessageCount!);
+      if (isDefined(sessionId)) {
         messageBody[Constants.sessionIdMapKey] = sessionId;
       }
-      const request: AmqpMessage = {
+      if (isDefined(omitMessageBody)) {
+        const omitMessageBodyKey = "omit-message-body"; // TODO: Service Bus specific. Put it somewhere
+        messageBody[omitMessageBodyKey] = types.wrap_boolean(omitMessageBody);
+      }
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
-        message_id: generate_uuid(),
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.peekMessage
-        }
+          operation: Constants.operations.peekMessage,
+        },
       };
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Peek by sequence number request body: %O.",
-        this._context.namespace.connectionId,
+
+      // TODO: it'd be nice to attribute this peek request to the actual receiver that made it. So have them pass in a
+      // log prefix rather than just falling back to the management links.
+      receiverLogger.verbose(
+        "%s Peek by sequence number request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
 
-      const result = await this._mgmtReqResLink!.sendRequest(request);
+      const result = await this._makeManagementRequest(request, receiverLogger, updatedOptions);
       if (result.application_properties!.statusCode !== 204) {
         const messages = result.body.messages as { message: Buffer }[];
         for (const msg of messages) {
           const decodedMessage = RheaMessageUtil.decode(msg.message);
-          const message = fromAmqpMessage(decodedMessage as any);
-          message.body = this._context.namespace.dataTransformer.decode(message.body);
+          const message = fromRheaMessage(decodedMessage as any, {
+            skipParsingBodyAsJson: updatedOptions?.skipParsingBodyAsJson ?? false,
+            skipConvertingDate: updatedOptions?.skipConvertingDate ?? false,
+          });
           messageList.push(message);
           this._lastPeekedSequenceNumber = message.sequenceNumber!;
         }
       }
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the request to peek messages to " +
-          "$management endpoint: %O",
-        error
+      const error = translateServiceBusError(err) as MessagingError;
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the request to peek messages to $management endpoint`
       );
       // statusCode == 404 then do not throw
-      if (error.name !== ConditionErrorNameMapper["com.microsoft:message-not-found"]) {
+      if (error.code !== ConditionErrorNameMapper["com.microsoft:message-not-found"]) {
         throw error;
       }
     }
@@ -472,16 +617,15 @@ export class ManagementClient extends LinkEntity {
    * lock needs to be renewed. For each renewal, it resets the time the message is locked by the
    * LockDuration set on the Entity.
    *
-   * @param {string} lockToken Lock token of the message
-   * @param {SendRequestOptions} [options] Options that can be set while sending the request.
-   * @returns {Promise<Date>} Promise<Date> New lock token expiry date and time in UTC format.
+   * @param lockToken - Lock token of the message
+   * @param options - Options that can be set while sending the request.
+   * @returns New lock token expiry date and time in UTC format.
    */
-  async renewLock(lockToken: string, options?: SendRequestOptions): Promise<Date> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  // eslint-disable-next-line @azure/azure-sdk/ts-naming-options
+  async renewLock(lockToken: string, options?: SendManagementRequestOptions): Promise<Date> {
+    throwErrorIfConnectionClosed(this._context);
     if (!options) options = {};
-    if (options.delayInSeconds == null) options.delayInSeconds = 1;
-    if (options.timeoutInSeconds == null) options.timeoutInSeconds = 5;
-    if (options.times == null) options.times = 5;
+    if (options.timeoutInMs == null) options.timeoutInMs = 5000;
 
     try {
       const messageBody: any = {};
@@ -491,38 +635,35 @@ export class ManagementClient extends LinkEntity {
         0x98,
         undefined
       );
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.renewLock
-        }
+          operation: Constants.operations.renewLock,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
-      const associatedLinkName = this._getAssociatedReceiverName(this._context);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions.associatedLinkName;
       }
-      log.mgmt(
+      receiverLogger.verbose(
         "[%s] Renew message Lock request: %O.",
-        this._context.namespace.connectionId,
+        this._context.connectionId,
         request
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
+      const result = await this._makeManagementRequest(request, receiverLogger, {
+        abortSignal: updatedOptions?.abortSignal,
+        requestName: "renewLock",
       });
-      const result = await this._mgmtReqResLink!.sendRequest(request, options);
       const lockedUntilUtc = new Date(result.body.expirations[0]);
       return lockedUntilUtc;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the renew lock request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the renew lock request to $management endpoint`
       );
       throw error;
     }
@@ -533,81 +674,76 @@ export class ManagementClient extends LinkEntity {
    *
    * @param scheduledEnqueueTimeUtc - The UTC time at which the messages should be enqueued.
    * @param messages - An array of messages that needs to be scheduled.
-   * @returns Promise<number> The sequence numbers of messages that were scheduled.
+   * @returns The sequence numbers of messages that were scheduled.
    */
   async scheduleMessages(
     scheduledEnqueueTimeUtc: Date,
-    messages: SendableMessageInfo[]
+    messages: ServiceBusMessage[] | AmqpAnnotatedMessage[],
+    options?: OperationOptionsBase & SendManagementRequestOptions
   ): Promise<Long[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+    throwErrorIfConnectionClosed(this._context);
+    if (!messages.length) {
+      return [];
+    }
     const messageBody: any[] = [];
     for (let i = 0; i < messages.length; i++) {
       const item = messages[i];
-      if (!item.messageId) item.messageId = generate_uuid();
-      item.scheduledEnqueueTimeUtc = scheduledEnqueueTimeUtc;
-      const amqpMessage = toAmqpMessage(item);
 
       try {
-        const entry: any = {
-          message: RheaMessageUtil.encode(amqpMessage),
-          "message-id": item.messageId
+        const rheaMessage = toRheaMessage(item, defaultDataTransformer);
+        updateMessageId(rheaMessage, rheaMessage.message_id || generate_uuid());
+        updateScheduledTime(rheaMessage, scheduledEnqueueTimeUtc);
+
+        const entry: {
+          message: Buffer;
+          ["message-id"]: ServiceBusMessage["messageId"];
+          ["partition-key"]?: ServiceBusMessage["partitionKey"];
+          [Constants.sessionIdMapKey]?: string | undefined;
+        } = {
+          message: RheaMessageUtil.encode(rheaMessage),
+          "message-id": rheaMessage.message_id,
         };
-        if (item.sessionId) {
-          entry[Constants.sessionIdMapKey] = item.sessionId;
+
+        if (rheaMessage.group_id) {
+          entry[Constants.sessionIdMapKey] = rheaMessage.group_id;
         }
-        if (item.partitionKey) {
-          entry["partition-key"] = item.partitionKey;
+
+        if (rheaMessage.message_annotations?.[Constants.partitionKey]) {
+          entry["partition-key"] = rheaMessage.message_annotations[Constants.partitionKey];
         }
-        if (item.viaPartitionKey) {
-          entry["via-partition-key"] = item.viaPartitionKey;
-        }
+
+        // Will be required later for implementing Transactions
+        // if (item.viaPartitionKey) {
+        //   entry["via-partition-key"] = item.viaPartitionKey;
+        // }
 
         const wrappedEntry = types.wrap_map(entry);
         messageBody.push(wrappedEntry);
       } catch (err) {
-        let error: Error;
-        if (err instanceof TypeError || err.name === "TypeError") {
-          // `RheaMessageUtil.encode` can fail if message properties are of invalid type
-          // rhea throws errors with name `TypeError` but not an instance of `TypeError`, so catch them too
-          // Errors in such cases do not have user friendy message or call stack
-          // So use `getMessagePropertyTypeMismatchError` to get a better error message
-          error = translate(getMessagePropertyTypeMismatchError(item) || err);
-        } else {
-          error = translate(err);
-        }
-        log.error(
-          "An error occurred while encoding the item at position %d in the messages array" + ": %O",
-          i,
-          error
+        const error = translateServiceBusError(err);
+        senderLogger.logError(
+          error,
+          `${this.logPrefix} An error occurred while encoding the item at position ${i} in the messages array`
         );
         throw error;
       }
     }
+    const updatedOptions = await this.initWithUniqueReplyTo(options);
     try {
-      const request: AmqpMessage = {
+      const request: RheaMessage = {
         body: { messages: messageBody },
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.scheduleMessage
-        }
+          operation: Constants.operations.scheduleMessage,
+        },
       };
-      if (this._context.sender) {
-        request.application_properties![Constants.associatedLinkName] = this._context.sender!.name;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Schedule messages request body: %O.",
-        this._context.namespace.connectionId,
-        request.body
-      );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      const result = await this._mgmtReqResLink!.sendRequest(request);
+      senderLogger.verbose("%s Schedule messages request body: %O.", this.logPrefix, request.body);
+      const result = await this._makeManagementRequest(request, senderLogger, updatedOptions);
       const sequenceNumbers = result.body[Constants.sequenceNumbers];
       const sequenceNumbersAsLong = [];
       for (let i = 0; i < sequenceNumbers.length; i++) {
@@ -619,11 +755,10 @@ export class ManagementClient extends LinkEntity {
       }
       return sequenceNumbersAsLong;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the request to schedule messages to " +
-          "$management endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      senderLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the request to schedule messages to $management endpoint`
       );
       throw error;
     }
@@ -632,10 +767,15 @@ export class ManagementClient extends LinkEntity {
   /**
    * Cancels an array of messages that were scheduled.
    * @param sequenceNumbers - An Array of sequence numbers of the message to be cancelled.
-   * @returns Promise<void>
    */
-  async cancelScheduledMessages(sequenceNumbers: Long[]): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  async cancelScheduledMessages(
+    sequenceNumbers: Long[],
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<void> {
+    throwErrorIfConnectionClosed(this._context);
+    if (!sequenceNumbers.length) {
+      return;
+    }
     const messageBody: any = {};
     messageBody[Constants.sequenceNumbers] = [];
     for (let i = 0; i < sequenceNumbers.length; i++) {
@@ -643,12 +783,10 @@ export class ManagementClient extends LinkEntity {
       try {
         messageBody[Constants.sequenceNumbers].push(Buffer.from(sequenceNumber.toBytesBE()));
       } catch (err) {
-        const error = translate(err);
-        log.error(
-          "An error occurred while encoding the item at position %d in the " +
-            "sequenceNumbers array: %O",
-          i,
-          error
+        const error = translateServiceBusError(err);
+        senderLogger.logError(
+          error,
+          `${this.logPrefix} An error occurred while encoding the item at position ${i} in the sequenceNumbers array`
         );
         throw error;
       }
@@ -660,38 +798,33 @@ export class ManagementClient extends LinkEntity {
         0x81,
         undefined
       );
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
-        message_id: generate_uuid(),
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.cancelScheduledMessage
-        }
+          operation: Constants.operations.cancelScheduledMessage,
+        },
       };
 
-      if (this._context.sender) {
-        request.application_properties![Constants.associatedLinkName] = this._context.sender!.name;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Cancel scheduled messages request body: %O.",
-        this._context.namespace.connectionId,
+      senderLogger.verbose(
+        "%s Cancel scheduled messages request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      await this._mgmtReqResLink!.sendRequest(request);
+
+      await this._makeManagementRequest(request, senderLogger, updatedOptions);
+      return;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the request to cancel the scheduled message to " +
-          "$management endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      senderLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the request to cancel the scheduled message to $management endpoint`
       );
       throw error;
     }
@@ -699,21 +832,25 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Receives a list of deferred messages identified by `sequenceNumbers`.
-   * @param sequenceNumbers A list containing the sequence numbers to receive.
-   * @param receiveMode The mode in which the receiver was created.
-   * @returns Promise<ServiceBusMessage[]>
-   * - Returns a list of messages identified by the given sequenceNumbers.
-   * - Returns an empty list if no messages are found.
+   *
+   * @param sequenceNumbers - A list containing the sequence numbers to receive.
+   * @param receiveMode - The mode in which the receiver was created.
+   * @returns a list of messages identified by the given sequenceNumbers or an empty list if no messages are found.
    * - Throws an error if the messages have not been deferred.
    */
   async receiveDeferredMessages(
     sequenceNumbers: Long[],
     receiveMode: ReceiveMode,
-    sessionId?: string
-  ): Promise<ServiceBusMessage[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+    sessionId?: string,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<ServiceBusMessageImpl[]> {
+    throwErrorIfConnectionClosed(this._context);
 
-    const messageList: ServiceBusMessage[] = [];
+    if (!sequenceNumbers.length) {
+      return [];
+    }
+
+    const messageList: ServiceBusMessageImpl[] = [];
     const messageBody: any = {};
     messageBody[Constants.sequenceNumbers] = [];
     for (let i = 0; i < sequenceNumbers.length; i++) {
@@ -721,12 +858,10 @@ export class ManagementClient extends LinkEntity {
       try {
         messageBody[Constants.sequenceNumbers].push(Buffer.from(sequenceNumber.toBytesBE()));
       } catch (err) {
-        const error = translate(err);
-        log.error(
-          "An error occurred while encoding the item at position %d in the " +
-            "sequenceNumbers array: %O",
-          i,
-          error
+        const error = translateServiceBusError(err);
+        receiverLogger.logError(
+          error,
+          `${this.logPrefix} An error occurred while encoding the item at position ${i} in the sequenceNumbers array`
         );
         throw error;
       }
@@ -738,65 +873,53 @@ export class ManagementClient extends LinkEntity {
         0x81,
         undefined
       );
-      const receiverSettleMode: number = receiveMode === ReceiveMode.receiveAndDelete ? 0 : 1;
+      const receiverSettleMode: number = receiveMode === "receiveAndDelete" ? 0 : 1;
       messageBody[Constants.receiverSettleMode] = types.wrap_uint(receiverSettleMode);
       if (sessionId != null) {
         messageBody[Constants.sessionIdMapKey] = sessionId;
       }
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
-        message_id: generate_uuid(),
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.receiveBySequenceNumber
-        }
+          operation: Constants.operations.receiveBySequenceNumber,
+        },
       };
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Receive deferred messages request body: %O.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Receive deferred messages request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
 
-      const result = await this._mgmtReqResLink!.sendRequest(request);
+      const result = await this._makeManagementRequest(request, receiverLogger, updatedOptions);
       const messages = result.body.messages as {
         message: Buffer;
         "lock-token": Buffer;
       }[];
       for (const msg of messages) {
         const decodedMessage = RheaMessageUtil.decode(msg.message);
-        const message = new ServiceBusMessage(
-          this._context,
+        const message = new ServiceBusMessageImpl(
           decodedMessage as any,
           { tag: msg["lock-token"] } as any,
+          false,
+          receiveMode,
+          updatedOptions?.skipParsingBodyAsJson ?? false,
           false
         );
-        if (message.lockToken && message.lockedUntilUtc) {
-          this._context.requestResponseLockedMessages.set(
-            message.lockToken,
-            message.lockedUntilUtc
-          );
-        }
         messageList.push(message);
       }
       return messageList;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the request to receive deferred messages to " +
-          "$management endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the request to receive deferred messages to $management endpoint`
       );
       throw error;
     }
@@ -805,21 +928,27 @@ export class ManagementClient extends LinkEntity {
   /**
    * Updates the disposition status of deferred messages.
    *
-   * @param lockTokens Message lock tokens to update disposition status.
-   * @param dispositionStatus The disposition status to be set
-   * @param options Optional parameters that can be provided while updating the disposition status.
-   *
-   * @returns Promise<void>
+   * @param lockTokens - Message lock tokens to update disposition status.
+   * @param dispositionStatus - The disposition status to be set
+   * @param options - Optional parameters that can be provided while updating the disposition status.
    */
   async updateDispositionStatus(
     lockToken: string,
-    dispositionStatus: DispositionStatus,
-    options?: DispositionStatusOptions
+    dispositionType: DispositionType,
+    // TODO: mgmt link retry<> will come in the next PR.
+    options?: Omit<DispositionStatusOptions, "retryOptions"> & SendManagementRequestOptions
   ): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-
+    throwErrorIfConnectionClosed(this._context);
     if (!options) options = {};
     try {
+      let dispositionStatus: "completed" | "defered" | "suspended" | "abandoned";
+
+      if (dispositionType === DispositionType.abandon) dispositionStatus = "abandoned";
+      else if (dispositionType === DispositionType.complete) dispositionStatus = "completed";
+      else if (dispositionType === DispositionType.defer) dispositionStatus = "defered";
+      else if (dispositionType === DispositionType.deadletter) dispositionStatus = "suspended";
+      else throw new Error(`Provided "dispositionType" - ${dispositionType} is invalid`);
+
       const messageBody: any = {};
       const lockTokenBuffer: Buffer[] = [];
       lockTokenBuffer.push(string_to_uuid(lockToken));
@@ -837,38 +966,30 @@ export class ManagementClient extends LinkEntity {
       if (options.sessionId != null) {
         messageBody[Constants.sessionIdMapKey] = options.sessionId;
       }
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
-        message_id: generate_uuid(),
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.updateDisposition
-        }
+          operation: Constants.operations.updateDisposition,
+        },
       };
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, options.sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Update disposition status request body: %O.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Update disposition status request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      await this._mgmtReqResLink!.sendRequest(request);
+      await this._makeManagementRequest(request, receiverLogger, updatedOptions);
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the request to update disposition status to " +
-          "$management endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the request to update disposition status to $management endpoint`
       );
       throw error;
     }
@@ -876,57 +997,51 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Renews the lock for the specified session.
-   * @param sessionId Id of the session for which the lock needs to be renewed
-   * @param options Options that can be set while sending the request.
-   * @returns Promise<Date> New lock token expiry date and time in UTC format.
+   *
+   * @param sessionId - Id of the session for which the lock needs to be renewed
+   * @param options - Options that can be set while sending the request.
+   * @returns New lock token expiry date and time in UTC format.
    */
-  async renewSessionLock(sessionId: string, options?: SendRequestOptions): Promise<Date> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-    if (!options) options = {};
-    if (options.delayInSeconds == null) options.delayInSeconds = 1;
-    if (options.timeoutInSeconds == null) options.timeoutInSeconds = 5;
-    if (options.times == null) options.times = 5;
+  async renewSessionLock(
+    sessionId: string,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<Date> {
+    throwErrorIfConnectionClosed(this._context);
     try {
       const messageBody: any = {};
       messageBody[Constants.sessionIdMapKey] = sessionId;
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.renewSessionLock
-        }
+          operation: Constants.operations.renewSessionLock,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
-      log.mgmt(
-        "[%s] Renew Session Lock request body: %O.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Renew Session Lock request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      const result = await this._mgmtReqResLink!.sendRequest(request, options);
+      const result = await this._makeManagementRequest(request, receiverLogger, updatedOptions);
       const lockedUntilUtc = new Date(result.body.expiration);
-      log.mgmt(
-        "[%s] Lock for session '%s' will expire at %s.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Lock for session '%s' will expire at %s.",
+        this.logPrefix,
         sessionId,
         lockedUntilUtc.toString()
       );
       return lockedUntilUtc;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the renew lock request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the renew lock request to $management endpoint`
       );
       throw error;
     }
@@ -934,47 +1049,45 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Sets the state of the specified session.
-   * @param sessionId The session for which the state needs to be set
-   * @param state The state that needs to be set.
-   * @returns Promise<void>
+   *
+   * @param sessionId - The session for which the state needs to be set
+   * @param state - The state that needs to be set.
    */
-  async setSessionState(sessionId: string, state: any): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  async setSessionState(
+    sessionId: string,
+    state: unknown,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<void> {
+    throwErrorIfConnectionClosed(this._context);
 
     try {
       const messageBody: any = {};
       messageBody[Constants.sessionIdMapKey] = sessionId;
       messageBody["session-state"] = toBuffer(state);
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.setSessionState
-        }
+          operation: Constants.operations.setSessionState,
+        },
       };
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Set Session state request body: %O.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Set Session state request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      await this._mgmtReqResLink!.sendRequest(request);
+      await this._makeManagementRequest(request, receiverLogger, updatedOptions);
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the renew lock request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the renew lock request to $management endpoint`
       );
       throw error;
     }
@@ -982,47 +1095,45 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Gets the state of the specified session.
-   * @param sessionId The session for which the state needs to be retrieved.
-   * @returns Promise<any> The state of that session
+   *
+   * @param sessionId - The session for which the state needs to be retrieved.
+   * @returns The state of that session
    */
-  async getSessionState(sessionId: string): Promise<any> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  async getSessionState(
+    sessionId: string,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<any> {
+    throwErrorIfConnectionClosed(this._context);
     try {
       const messageBody: any = {};
       messageBody[Constants.sessionIdMapKey] = sessionId;
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.getSessionState
-        }
+          operation: Constants.operations.getSessionState,
+        },
       };
-      const associatedLinkName = this._getAssociatedReceiverName(this._context, sessionId);
-      if (associatedLinkName) {
-        request.application_properties![Constants.associatedLinkName] = associatedLinkName;
+      if (updatedOptions?.associatedLinkName) {
+        request.application_properties![Constants.associatedLinkName] =
+          updatedOptions?.associatedLinkName;
       }
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] Get session state request body: %O.",
-        this._context.namespace.connectionId,
+      receiverLogger.verbose(
+        "%s Get session state request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      const result = await this._mgmtReqResLink!.sendRequest(request);
+      const result = await this._makeManagementRequest(request, receiverLogger, updatedOptions);
       return result.body["session-state"]
-        ? this._context.namespace.dataTransformer.decode(result.body["session-state"])
+        ? tryToJsonDecode(result.body["session-state"])
         : result.body["session-state"];
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the renew lock request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      receiverLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the renew lock request to $management endpoint`
       );
       throw error;
     }
@@ -1030,13 +1141,18 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Lists the sessions on the ServiceBus Queue/Topic.
-   * @param lastUpdateTime Filter to include only sessions updated after a given time.
-   * @param skip The number of sessions to skip
-   * @param top Maximum numer of sessions.
-   * @returns Promise<string[]> A list of session ids.
+   * @param lastUpdateTime - Filter to include only sessions updated after a given time.
+   * @param skip - The number of sessions to skip
+   * @param top - Maximum numer of sessions.
+   * @returns A list of session ids.
    */
-  async listMessageSessions(skip: number, top: number, lastUpdatedTime?: Date): Promise<string[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  async listMessageSessions(
+    skip: number,
+    top: number,
+    lastUpdatedTime?: Date,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<string[]> {
+    throwErrorIfConnectionClosed(this._context);
     const defaultLastUpdatedTimeForListingSessions: number = 259200000; // 3 * 24 * 3600 * 1000
     if (typeof skip !== "number") {
       throw new Error("'skip' is a required parameter and must be of type 'number'.");
@@ -1055,34 +1171,32 @@ export class ManagementClient extends LinkEntity {
       messageBody["last-updated-time"] = lastUpdatedTime;
       messageBody["skip"] = types.wrap_int(skip);
       messageBody["top"] = types.wrap_int(top);
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: messageBody,
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.enumerateSessions
-        }
+          operation: Constants.operations.enumerateSessions,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
-      log.mgmt(
-        "[%s] List sessions request body: %O.",
-        this._context.namespace.connectionId,
+      managementClientLogger.verbose(
+        "%s List sessions request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
+      const response = await this._makeManagementRequest(
+        request,
+        managementClientLogger,
+        updatedOptions
       );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-      const response = await this._mgmtReqResLink!.sendRequest(request);
 
       return (response && response.body && response.body["sessions-ids"]) || [];
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the renew lock request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      managementClientLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the renew lock request to $management endpoint`
       );
       throw error;
     }
@@ -1090,37 +1204,40 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Get all the rules on the Subscription.
-   * @returns Promise<RuleDescription[]> A list of rules.
+   * @returns A list of rules.
    */
-  async getRules(): Promise<RuleDescription[]> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+  async getRules(
+    options?: ListRequestOptions & OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<RuleProperties[]> {
+    throwErrorIfConnectionClosed(this._context);
     try {
-      const request: AmqpMessage = {
+      const updatedOptions = (await this.initWithUniqueReplyTo(options)) as ListRequestOptions &
+        OperationOptionsBase &
+        SendManagementRequestOptions;
+      const request: RheaMessage = {
         body: {
-          top: types.wrap_int(max32BitNumber),
-          skip: types.wrap_int(0)
+          top: updatedOptions?.maxCount
+            ? types.wrap_int(updatedOptions.maxCount)
+            : types.wrap_int(max32BitNumber),
+          skip: updatedOptions?.skip ? types.wrap_int(updatedOptions.skip) : types.wrap_int(0),
         },
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.enumerateRules
-        }
+          operation: Constants.operations.enumerateRules,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
 
-      log.mgmt(
-        "[%s] Get rules request body: %O.",
-        this._context.namespace.connectionId,
+      managementClientLogger.verbose(
+        "%s Get rules request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
+      const response = await this._makeManagementRequest(
+        request,
+        managementClientLogger,
+        updatedOptions
       );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-
-      const response = await this._mgmtReqResLink!.sendRequest(request);
       if (
         response.application_properties!.statusCode === 204 ||
         !response.body ||
@@ -1129,11 +1246,12 @@ export class ManagementClient extends LinkEntity {
         return [];
       }
 
-      // Reference: https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#response-11
+      // Reference: https://docs.microsoft.com/azure/service-bus-messaging/service-bus-amqp-request-response#response-11
       const result: { "rule-description": Typed }[] = response.body.rules || [];
-      const rules: RuleDescription[] = [];
+      const rules: RuleProperties[] = [];
       result.forEach((x) => {
         const ruleDescriptor = x["rule-description"];
+        let filter: SqlRuleFilter | CorrelationRuleFilter;
 
         // We use the first three elements of the `ruleDescriptor.value` to get filter, action, name
         if (
@@ -1148,57 +1266,73 @@ export class ManagementClient extends LinkEntity {
 
         const filtersRawData: Typed = ruleDescriptor.value[0];
         const actionsRawData: Typed = ruleDescriptor.value[1];
-        const rule: RuleDescription = {
-          name: ruleDescriptor.value[2].value
-        };
-
-        switch (filtersRawData.descriptor.value) {
-          case Constants.descriptorCodes.trueFilterList:
-            rule.filter = "1=1";
-            break;
-          case Constants.descriptorCodes.falseFilterList:
-            rule.filter = "1=0";
-            break;
-          case Constants.descriptorCodes.sqlFilterList:
-            rule.filter = this._safelyGetTypedValueFromArray(filtersRawData.value, 0);
-            break;
-          case Constants.descriptorCodes.correlationFilterList:
-            rule.filter = {
-              correlationId: this._safelyGetTypedValueFromArray(filtersRawData.value, 0),
-              messageId: this._safelyGetTypedValueFromArray(filtersRawData.value, 1),
-              to: this._safelyGetTypedValueFromArray(filtersRawData.value, 2),
-              replyTo: this._safelyGetTypedValueFromArray(filtersRawData.value, 3),
-              label: this._safelyGetTypedValueFromArray(filtersRawData.value, 4),
-              sessionId: this._safelyGetTypedValueFromArray(filtersRawData.value, 5),
-              replyToSessionId: this._safelyGetTypedValueFromArray(filtersRawData.value, 6),
-              contentType: this._safelyGetTypedValueFromArray(filtersRawData.value, 7),
-              userProperties: this._safelyGetTypedValueFromArray(filtersRawData.value, 8)
-            };
-            break;
-          default:
-            log.mgmt(
-              `Found unexpected descriptor code for the filter: ${filtersRawData.descriptor.value}`
-            );
-            break;
-        }
-
+        let sqlRuleAction: SqlRuleAction;
         if (
           actionsRawData.descriptor.value === Constants.descriptorCodes.sqlRuleActionList &&
           Array.isArray(actionsRawData.value) &&
           actionsRawData.value.length
         ) {
-          rule.action = this._safelyGetTypedValueFromArray(actionsRawData.value, 0);
+          sqlRuleAction = {
+            sqlExpression: this._safelyGetTypedValueFromArray(actionsRawData.value, 0),
+          };
+        } else {
+          sqlRuleAction = {};
         }
 
+        switch (filtersRawData.descriptor.value) {
+          case Constants.descriptorCodes.trueFilterList:
+            filter = {
+              sqlExpression: "1=1",
+            };
+            break;
+          case Constants.descriptorCodes.falseFilterList:
+            filter = {
+              sqlExpression: "1=0",
+            };
+            break;
+          case Constants.descriptorCodes.sqlFilterList:
+            filter = {
+              sqlExpression: this._safelyGetTypedValueFromArray(filtersRawData.value, 0),
+            };
+            break;
+          case Constants.descriptorCodes.correlationFilterList:
+            filter = {
+              correlationId: this._safelyGetTypedValueFromArray(filtersRawData.value, 0),
+              messageId: this._safelyGetTypedValueFromArray(filtersRawData.value, 1),
+              to: this._safelyGetTypedValueFromArray(filtersRawData.value, 2),
+              replyTo: this._safelyGetTypedValueFromArray(filtersRawData.value, 3),
+              subject: this._safelyGetTypedValueFromArray(filtersRawData.value, 4),
+              sessionId: this._safelyGetTypedValueFromArray(filtersRawData.value, 5),
+              replyToSessionId: this._safelyGetTypedValueFromArray(filtersRawData.value, 6),
+              contentType: this._safelyGetTypedValueFromArray(filtersRawData.value, 7),
+              applicationProperties:
+                Array.isArray(filtersRawData.value) &&
+                filtersRawData.value.length > 8 &&
+                filtersRawData.value[8]
+                  ? this._decodeApplicationPropertiesMap(filtersRawData.value[8])
+                  : undefined,
+            };
+            break;
+          default:
+            throw new Error(
+              `${this.logPrefix} Found unexpected descriptor code for the filter: ${filtersRawData.descriptor.value}`
+            );
+        }
+
+        const rule: RuleProperties = {
+          name: ruleDescriptor.value[2].value,
+          filter,
+          action: sqlRuleAction,
+        };
         rules.push(rule);
       });
 
       return rules;
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the get rules request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      managementClientLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the get rules request to $management endpoint`
       );
       throw error;
     }
@@ -1206,49 +1340,40 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Removes the rule on the Subscription identified by the given rule name.
-   * @param ruleName
    */
-  async removeRule(ruleName: string): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
-    throwTypeErrorIfParameterMissing(this._context.namespace.connectionId, "ruleName", ruleName);
+  async removeRule(
+    ruleName: string,
+    options?: OperationOptionsBase & SendManagementRequestOptions
+  ): Promise<void> {
+    throwErrorIfConnectionClosed(this._context);
+    throwTypeErrorIfParameterMissing(this._context.connectionId, "ruleName", ruleName);
     ruleName = String(ruleName);
-    throwTypeErrorIfParameterIsEmptyString(
-      this._context.namespace.connectionId,
-      "ruleName",
-      ruleName
-    );
+    throwTypeErrorIfParameterIsEmptyString(this._context.connectionId, "ruleName", ruleName);
 
     try {
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: {
-          "rule-name": types.wrap_string(ruleName)
+          "rule-name": types.wrap_string(ruleName),
         },
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.removeRule
-        }
+          operation: Constants.operations.removeRule,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
 
-      log.mgmt(
-        "[%s] Remove Rule request body: %O.",
-        this._context.namespace.connectionId,
+      managementClientLogger.verbose(
+        "%s Remove Rule request body: %O.",
+        this.logPrefix,
         request.body
       );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-
-      await this._mgmtReqResLink!.sendRequest(request);
+      await this._makeManagementRequest(request, managementClientLogger, updatedOptions);
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the remove rule request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      managementClientLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the remove rule request to $management endpoint`
       );
       throw error;
     }
@@ -1256,102 +1381,118 @@ export class ManagementClient extends LinkEntity {
 
   /**
    * Adds a rule on the subscription as defined by the given rule name, filter and action
-   * @param ruleName Name of the rule
-   * @param filter A Boolean, SQL expression or a Correlation filter
-   * @param sqlRuleActionExpression Action to perform if the message satisfies the filtering expression
+   * @param ruleName - Name of the rule
+   * @param filter - A Boolean, SQL expression or a Correlation filter
+   * @param sqlRuleActionExpression - Action to perform if the message satisfies the filtering expression
    */
   async addRule(
     ruleName: string,
-    filter: boolean | string | CorrelationFilter,
-    sqlRuleActionExpression?: string
+    filter: SqlRuleFilter | CorrelationRuleFilter,
+    sqlRuleActionExpression?: string,
+    options?: OperationOptionsBase & SendManagementRequestOptions
   ): Promise<void> {
-    throwErrorIfConnectionClosed(this._context.namespace);
+    throwErrorIfConnectionClosed(this._context);
 
-    throwTypeErrorIfParameterMissing(this._context.namespace.connectionId, "ruleName", ruleName);
+    throwTypeErrorIfParameterMissing(this._context.connectionId, "ruleName", ruleName);
     ruleName = String(ruleName);
-    throwTypeErrorIfParameterIsEmptyString(
-      this._context.namespace.connectionId,
-      "ruleName",
-      ruleName
-    );
+    throwTypeErrorIfParameterIsEmptyString(this._context.connectionId, "ruleName", ruleName);
 
-    throwTypeErrorIfParameterMissing(this._context.namespace.connectionId, "filter", filter);
-    if (
-      typeof filter !== "boolean" &&
-      typeof filter !== "string" &&
-      !correlationProperties.some((validProperty) => filter.hasOwnProperty(validProperty))
-    ) {
+    throwTypeErrorIfParameterMissing(this._context.connectionId, "filter", filter);
+    if (!isSqlRuleFilter(filter) && !isCorrelationRuleFilter(filter)) {
       throw new TypeError(
-        `The parameter "filter" should be either a boolean, string or implement the CorrelationFilter interface.`
+        `The parameter "filter" should implement either the SqlRuleFilter or the CorrelationRuleFilter interface.`
       );
     }
 
     try {
       const ruleDescription: any = {};
-      switch (typeof filter) {
-        case "boolean":
-          ruleDescription["sql-filter"] = {
-            expression: filter ? "1=1" : "1=0"
-          };
-          break;
-        case "string":
-          ruleDescription["sql-filter"] = {
-            expression: filter
-          };
-          break;
-        default:
-          ruleDescription["correlation-filter"] = {
-            "correlation-id": filter.correlationId,
-            "message-id": filter.messageId,
-            to: filter.to,
-            "reply-to": filter.replyTo,
-            label: filter.label,
-            "session-id": filter.sessionId,
-            "reply-to-session-id": filter.replyToSessionId,
-            "content-type": filter.contentType,
-            properties: filter.userProperties
-          };
-          break;
+      if (isSqlRuleFilter(filter)) {
+        ruleDescription["sql-filter"] = {
+          expression: filter.sqlExpression,
+        };
+      } else {
+        ruleDescription["correlation-filter"] = {
+          "correlation-id": filter.correlationId,
+          "message-id": filter.messageId,
+          to: filter.to,
+          "reply-to": filter.replyTo,
+          label: filter.subject,
+          "session-id": filter.sessionId,
+          "reply-to-session-id": filter.replyToSessionId,
+          "content-type": filter.contentType,
+          properties: filter.applicationProperties,
+        };
       }
 
       if (sqlRuleActionExpression !== undefined) {
         ruleDescription["sql-rule-action"] = {
-          expression: String(sqlRuleActionExpression)
+          expression: String(sqlRuleActionExpression),
         };
       }
-      const request: AmqpMessage = {
+      const updatedOptions = await this.initWithUniqueReplyTo(options);
+      const request: RheaMessage = {
         body: {
           "rule-name": types.wrap_string(ruleName),
-          "rule-description": types.wrap_map(ruleDescription)
+          "rule-description": types.wrap_map(ruleDescription),
         },
         reply_to: this.replyTo,
         application_properties: {
-          operation: Constants.operations.addRule
-        }
+          operation: Constants.operations.addRule,
+        },
       };
       request.application_properties![Constants.trackingId] = generate_uuid();
 
-      log.mgmt(
-        "[%s] Add Rule request body: %O.",
-        this._context.namespace.connectionId,
-        request.body
-      );
-      log.mgmt(
-        "[%s] Acquiring lock to get the management req res link.",
-        this._context.namespace.connectionId
-      );
-      await defaultLock.acquire(this.managementLock, () => {
-        return this._init();
-      });
-
-      await this._mgmtReqResLink!.sendRequest(request);
+      managementClientLogger.verbose("%s Add Rule request body: %O.", this.logPrefix, request.body);
+      await this._makeManagementRequest(request, managementClientLogger, updatedOptions);
     } catch (err) {
-      const error = translate(err);
-      log.error(
-        "An error occurred while sending the Add rule request to $management " + "endpoint: %O",
-        error
+      const error = translateServiceBusError(err);
+      managementClientLogger.logError(
+        error,
+        `${this.logPrefix} An error occurred while sending the Add rule request to $management endpoint`
       );
       throw error;
     }
   }
+
+  protected removeLinkFromContext(): void {
+    delete this._context.managementClients[this.name];
+  }
+}
+
+/**
+ * Converts an AmqpAnnotatedMessage or ServiceBusMessage into a properly formatted
+ * message for sending to the mgmt link for scheduling.
+ *
+ * @internal
+ * @hidden
+ */
+export function toScheduleableMessage(
+  item: ServiceBusMessage | AmqpAnnotatedMessage,
+  scheduledEnqueueTimeUtc: Date
+): Record<string, unknown> {
+  const rheaMessage = toRheaMessage(item, defaultDataTransformer);
+  updateMessageId(rheaMessage, rheaMessage.message_id || generate_uuid());
+  updateScheduledTime(rheaMessage, scheduledEnqueueTimeUtc);
+
+  const entry: Record<string, unknown> = {
+    message: RheaMessageUtil.encode(rheaMessage),
+    "message-id": rheaMessage.message_id,
+  };
+
+  rheaMessage.message_annotations = {
+    ...rheaMessage.message_annotations,
+    [Constants.scheduledEnqueueTime]: scheduledEnqueueTimeUtc,
+  };
+
+  if (rheaMessage.group_id) {
+    entry[Constants.sessionIdMapKey] = rheaMessage.group_id;
+  }
+
+  const partitionKey =
+    rheaMessage.message_annotations && rheaMessage.message_annotations[Constants.partitionKey];
+
+  if (partitionKey) {
+    entry["partition-key"] = partitionKey;
+  }
+  return entry;
 }

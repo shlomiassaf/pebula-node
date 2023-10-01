@@ -22,10 +22,10 @@
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json"
   },
   "devDependencies": {
-    "@azure/arm-servicebus": "^3.2.0",
+    "@azure/arm-servicebus": "^6.1.0",
     "@azure/core-http": "^1.0.0",
     "@azure/ms-rest-nodeauth": "^3.0.3",
-    "@azure/service-bus": "^1.1.7",
+    "@azure/service-bus": "^7.9.1",
     "@nestjs/common": "^7.0.9",
     "@nestjs/core": "^7.0.9",
     "@nestjs/microservices": "^7.0.9",
@@ -41,9 +41,9 @@
     "utility-types": "^3.10.0"
   },
   "peerDependencies": {
-    "@azure/arm-servicebus": "^3.2.0",
+    "@azure/arm-servicebus": "^6.1.0",
     "@azure/core-http": "^1.0.0",
-    "@azure/service-bus": "^1.1.7",
+    "@azure/service-bus": "^7.9.1",
     "@nestjs/common": "^7.0.0",
     "@nestjs/core": "^7.0.0",
     "@nestjs/microservices": "^7.0.5",
@@ -83,5 +83,8 @@
     "nestjs",
     "microservice"
   ],
-  "gitHead": "97bd6b3c99c320163a38115fca4b276c5fdcceeb"
+  "gitHead": "97bd6b3c99c320163a38115fca4b276c5fdcceeb",
+  "dependencies": {
+    "@azure/identity": "^3.3.0"
+  }
 }

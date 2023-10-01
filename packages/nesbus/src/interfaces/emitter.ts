@@ -1,4 +1,5 @@
-import { SendableMessageInfo } from '@azure/service-bus';
+import {OperationOptionsBase, ServiceBusMessage, ServiceBusMessageBatch } from '@azure/service-bus';
+import { AmqpAnnotatedMessage } from '@azure/core-amqp';
 import { SbEntityProvisionOption, SbQueueEntityProvision, SbTopicEntityProvision } from './entity-provision';
 
 export interface SbEmitterMetadataOptions {
@@ -43,7 +44,7 @@ export type SbEmitterRef = SbEmitterMetadataOptions;
  * Represents an object that can emit service bus message. (I.E a service bus `Sender`)
  */
 export interface SbEmitterImp {
-  send(message: SendableMessageInfo): Promise<void>;
+  sendMessages(messages: ServiceBusMessage | ServiceBusMessage[] | ServiceBusMessageBatch | AmqpAnnotatedMessage | AmqpAnnotatedMessage[], options?: OperationOptionsBase): Promise<void>;
 }
 
 /**

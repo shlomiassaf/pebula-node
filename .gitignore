@@ -68,3 +68,4 @@ typings/
 
 dist
 cjs
+.idea

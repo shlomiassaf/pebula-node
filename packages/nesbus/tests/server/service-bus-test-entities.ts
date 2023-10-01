@@ -1,4 +1,3 @@
-import { ReceiveMode } from '@azure/service-bus';
 
 export interface EntityTestEnvSetup {
   entity: 'topic' | 'subscription' | 'queue';
@@ -25,7 +24,7 @@ const SUBSCRIPTION = 'subscription' as 'subscription';
 export const SUBSCRIBERS = {
   TEST_QUEUE_1: {
     name: 'test.queue.1',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: QUEUE,
@@ -35,7 +34,7 @@ export const SUBSCRIBERS = {
   },
   TEST_QUEUE_2: {
     name: 'test.queue.2',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: QUEUE,
@@ -45,7 +44,7 @@ export const SUBSCRIBERS = {
   },
   TEST_QUEUE_3: {
     name: 'test.queue.3',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: QUEUE,
@@ -56,7 +55,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_1_1: {
     name: 'test.sub.1.1',
     topicName: 'test.topic.1',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,
@@ -66,7 +65,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_1_2: {
     name: 'test.sub.1.2',
     topicName: 'test.topic.1',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,
@@ -76,7 +75,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_1_3: {
     name: 'test.sub.1.3',
     topicName: 'test.topic.1',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,
@@ -86,7 +85,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_2_1: {
     name: 'test.sub.2.1',
     topicName: 'test.topic.2',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,
@@ -96,7 +95,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_2_2: {
     name: 'test.sub.2.2',
     topicName: 'test.topic.2',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,
@@ -106,7 +105,7 @@ export const SUBSCRIBERS = {
   TEST_SUB_2_3: {
     name: 'test.sub.2.3',
     topicName: 'test.topic.2',
-    receiveMode: ReceiveMode.peekLock,
+    receiveMode: 'peekLock' as 'peekLock' | 'receiveAndDelete',
     handlerOptions: { },
     testEnvSetup: {
       entity: SUBSCRIPTION,

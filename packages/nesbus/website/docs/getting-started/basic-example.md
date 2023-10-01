@@ -69,7 +69,7 @@ export class AppModule {}
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { Sender } from '@azure/service-bus';
+import { ServiceBusSender } from '@azure/service-bus';
 import { QueueEmitter, Topic } from '@pebula/nesbus';
 
 @Injectable()
@@ -78,12 +78,12 @@ export class ServiceBusEmitClient {
   @QueueEmitter({
     name: 'nesbus-queue.demo'
   })
-  myQueueEntity: Sender;
+  myQueueEntity: ServiceBusSender;
 
   @Topic({
     name: 'nesbus-topic.demo'
   })
-  myTopicEntity: Sender;
+  myTopicEntity: ServiceBusSender;
 }
 ```
 

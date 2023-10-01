@@ -1,5 +1,5 @@
-import { ModuleMetadata, Provider } from '@nestjs/common/interfaces';
-import { ApplicationTokenCredentials } from '@azure/ms-rest-nodeauth';
+import { Provider } from '@nestjs/common/interfaces';
+import { DefaultAzureCredential } from '@azure/identity'
 
 import { ServiceBusModule, SbServerOptions } from '@pebula/nesbus';
 import { registerArmAdapter } from '@pebula/nesbus/arm-adapter';
@@ -29,11 +29,7 @@ export function createClient(client: ReturnType<ConfigService['sbConnection']>['
     return {
       credentials: {
         host: client.host,
-        credentials: new ApplicationTokenCredentials(
-          client.credentials.clientId,
-          client.credentials.tenantId,
-          client.credentials.clientSecret,
-        )
+        credentials: new DefaultAzureCredential()
       }
     };
   }
@@ -56,11 +52,7 @@ export function createManagement(management: ReturnType<ConfigService['sbConnect
         resourceGroupName: management.resourceGroupName,
         namespace: management.namespace,
         subscriptionId: management.subscriptionId,
-        credentials: new ApplicationTokenCredentials(
-          management.credentials.clientId,
-          management.credentials.tenantId,
-          management.credentials.clientSecret,
-        ),
+        credentials: new DefaultAzureCredential(),
       },
       defaults,
     };

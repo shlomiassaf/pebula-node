@@ -33,7 +33,7 @@ export class ServiceBusEmitClient {
   @QueueEmitter({
     name: 'nesbus-queue.demo'
   })
-  myQueueEntity: Sender;
+  myQueueEntity: ServiceBusSender;
 }
 ```
 

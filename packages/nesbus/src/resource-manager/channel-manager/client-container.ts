@@ -1,42 +1,38 @@
 // tslint:disable: max-classes-per-file
-import { Sender, Receiver, SessionReceiver, ReceiveMode, SessionReceiverOptions, ServiceBusClient, QueueClient, TopicClient, SubscriptionClient } from '@azure/service-bus';
+import { ServiceBusClient, ServiceBusSessionReceiverOptions, ServiceBusReceiver, ServiceBusSessionReceiver, ServiceBusSender, ServiceBusReceiverOptions } from '@azure/service-bus';
 
 class TopicSubscriptionClientContainer {
-  readonly receiver: Receiver | SessionReceiver;
-  private rxQueueClient: SubscriptionClient;
-
+  readonly receiver: ServiceBusReceiver | ServiceBusSessionReceiver;
+  
   constructor(public readonly name: string,
               topic: TopicClientContainer,
-              receiveMode: ReceiveMode,
-              sessionReceiverOptions?: SessionReceiverOptions) {
-    this.rxQueueClient = topic.rxClient.createSubscriptionClient(topic.name, this.name);
-    this.receiver = sessionReceiverOptions
-      ? this.rxQueueClient.createReceiver(receiveMode, sessionReceiverOptions)
-      : this.rxQueueClient.createReceiver(receiveMode)
+              receiveMode: 'peekLock' | 'receiveAndDelete',
+              receiverOptions?: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions) {
+    this.receiver = receiverOptions
+      ? topic.rxClient.createReceiver(topic.name, receiveMode, {...receiverOptions, receiveMode})
+      : topic.rxClient.createReceiver(topic.name, receiveMode, { receiveMode })
     ;
   }
 
   async destroy() {
-    await this.rxQueueClient.close();
+    await this.receiver.close();
   }
 }
 
 export class QueueClientContainer {
-  sender?: Sender;
-  receiver?: Receiver | SessionReceiver;
-  private rxQueueClient: QueueClient;
-  private txQueueClient: QueueClient;
+  sender?: ServiceBusSender;
+  receiver?: ServiceBusReceiver | ServiceBusSessionReceiver;
 
   constructor(public readonly name: string,
               public readonly rxClient: ServiceBusClient,
               public readonly txClient: ServiceBusClient) {
   }
 
-  getCreateReceiver(receiveMode: ReceiveMode, sessionReceiverOptions?: SessionReceiverOptions) {
+  getCreateReceiver(receiveMode: 'peekLock' | 'receiveAndDelete', receiverOptions?: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions) {
     if (!this.receiver) {
-      this.receiver = sessionReceiverOptions
-        ? this.queueClient('rx').createReceiver(receiveMode, sessionReceiverOptions)
-        : this.queueClient('rx').createReceiver(receiveMode)
+      this.receiver = receiverOptions
+          ? this.rxClient.createReceiver(this.name, {...receiverOptions, receiveMode })
+          : this.rxClient.createReceiver(this.name, { receiveMode })
       ;
     }
     return this.receiver;
@@ -44,45 +40,24 @@ export class QueueClientContainer {
 
   getCreateSender() {
     if (!this.sender) {
-      this.sender = this.queueClient('tx').createSender();
+      this.sender = this.txClient.createSender(this.name);
     }
     return this.sender;
   }
 
-  private queueClient(type: 'rx' | 'tx') {
-    if (type === 'rx') {
-      if (!this.rxQueueClient) {
-        this.rxQueueClient = this.rxClient.createQueueClient(this.name);
-        if (this.txClient === this.rxClient) {
-          this.txQueueClient = this.rxQueueClient;
-        }
-      }
-      return this.rxQueueClient;
-    } else {
-      if (!this.txQueueClient) {
-        this.txQueueClient = this.txClient.createQueueClient(this.name);
-        if (this.txClient === this.rxClient) {
-          this.rxQueueClient = this.txQueueClient;
-        }
-      }
-      return this.txQueueClient;
-    }
-  }
-
   async destroy() {
-    if (this.rxQueueClient) {
-      await this.rxQueueClient.close();
+    if (this.sender) {
+      await this.sender.close();
     }
-    if (this.txQueueClient && this.txQueueClient !== this.rxQueueClient) {
-      await this.txQueueClient.close();
+    if (this.receiver) {
+      await this.receiver.close();
     }
   }
 }
 
 export class TopicClientContainer {
   readonly subscriptions = new Map<string, TopicSubscriptionClientContainer>();
-  sender?: Sender;
-  private txQueueClient: TopicClient;
+  sender?: ServiceBusSender;
 
   constructor(public readonly name: string,
               public readonly rxClient: ServiceBusClient,
@@ -90,28 +65,28 @@ export class TopicClientContainer {
 
   getCreateSender() {
     if (!this.sender) {
-      this.sender = this.txClient.createTopicClient(this.name).createSender();
+      this.sender = this.txClient.createSender(this.name);
     }
     return this.sender;
   }
 
-  getReceiver(subscriptionName: string): Receiver | SessionReceiver | undefined {
+  getReceiver(subscriptionName: string): ServiceBusReceiver | ServiceBusSessionReceiver | undefined {
     const subscriber = this.subscriptions.get(subscriptionName);
     if (subscriber) {
       return subscriber.receiver;
     }
   }
 
-  getCreateReceiver(subscriptionName: string, receiveMode: ReceiveMode, sessionReceiverOptions?: SessionReceiverOptions) {
+  getCreateReceiver(subscriptionName: string, receiveMode: 'peekLock' | 'receiveAndDelete', receiverOptions?: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions) {
     if (!this.subscriptions.has(subscriptionName)) {
-      this.subscriptions.set(subscriptionName, new TopicSubscriptionClientContainer(subscriptionName, this, receiveMode, sessionReceiverOptions));
+      this.subscriptions.set(subscriptionName, new TopicSubscriptionClientContainer(subscriptionName, this, receiveMode, receiverOptions));
     }
     return this.subscriptions.get(subscriptionName).receiver;
   }
 
   async destroy() {
-    if (this.txQueueClient) {
-      await this.txQueueClient.close();
+    if (this.sender) {
+      await this.sender.close();
     }
     const subscriptions = Array.from(this.subscriptions.values());
     this.subscriptions.clear();

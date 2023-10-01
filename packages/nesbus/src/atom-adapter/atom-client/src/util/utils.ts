@@ -1,34 +1,39 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 import Long from "long";
-import * as log from "../log";
-import { generate_uuid } from "rhea-promise";
+import { logger, receiverLogger, messageLogger, ServiceBusLogger } from "../log";
+import { AmqpError, OperationTimeoutError, generate_uuid } from "rhea-promise";
 import isBuffer from "is-buffer";
 import { Buffer } from "buffer";
 import * as Constants from "../util/constants";
-import { DispositionStatus, DispositionType } from "../serviceBusMessage";
+import { AbortError, AbortSignalLike } from "@azure/abort-controller";
+import { PipelineResponse } from "@azure/core-rest-pipeline";
+import { isDefined } from "@azure/core-util";
+import { HttpResponse, toHttpResponse } from "./compat";
+import { ErrorNameConditionMapper, StandardAbortMessage, delay } from "@azure/core-amqp";
+import { translateServiceBusError } from "../serviceBusError";
 
 // This is the only dependency we have on DOM types, so rather than require
 // the DOM lib we can just shim this in.
+/**
+ * @hidden
+ * @internal
+ */
 interface Navigator {
   hardwareConcurrency: number;
 }
+/**
+ * @hidden
+ * @internal
+ */
 declare const navigator: Navigator;
 
 /**
  * @internal
- * @ignore
- * A constant that indicates whether the environment is node.js or browser based.
- */
-export const isNode = typeof navigator === "undefined" && typeof process !== "undefined";
-
-/**
- * @internal
- * @ignore
  * Provides a uniue name by appending a string guid to the given string in the following format:
  * `{name}-{uuid}`.
- * @param name The nme of the entity
+ * @param name - The nme of the entity
  */
 export function getUniqueName(name: string): string {
   return `${name}-${generate_uuid()}`;
@@ -36,13 +41,24 @@ export function getUniqueName(name: string): string {
 
 /**
  * @internal
- * @ignore
+ * Returns the passed identifier if it is not undefined or empty;
+ * otherwise generate and returns a unique one in the following format;
+ *   `{prefix}-{uuid}`.
+ * @param prefix - The prefix used to generate identifier
+ * @param identifier - an identifier name
+ */
+export function ensureValidIdentifier(prefix: string, identifier?: string): string {
+  return identifier ? identifier : getUniqueName(prefix);
+}
+
+/**
+ * @internal
  * If you try to turn a Guid into a Buffer in .NET, the bytes of the first three groups get
  * flipped within the group, but the last two groups don't get flipped, so we end up with a
  * different byte order. This is the order of bytes needed to make Service Bus recognize the token.
  *
- * @param lockToken The lock token whose bytes need to be reorded.
- * @returns Buffer - Buffer representing reordered bytes.
+ * @param lockToken - The lock token whose bytes need to be reorded.
+ * @returns Buffer representing reordered bytes.
  */
 export function reorderLockToken(lockTokenBytes: Buffer): Buffer {
   if (!lockTokenBytes || !Buffer.isBuffer(lockTokenBytes)) {
@@ -69,13 +85,12 @@ export function reorderLockToken(lockTokenBytes: Buffer): Buffer {
     lockTokenBytes[12],
     lockTokenBytes[13],
     lockTokenBytes[14],
-    lockTokenBytes[15]
+    lockTokenBytes[15],
   ]);
 }
 
 /**
  * @internal
- * @ignore
  * Provides the time in milliseconds after which the lock renewal should occur.
  * @param lockedUntilUtc - The time until which the message is locked.
  */
@@ -83,31 +98,20 @@ export function calculateRenewAfterDuration(lockedUntilUtc: Date): number {
   const now = Date.now();
   const lockedUntil = lockedUntilUtc.getTime();
   const remainingTime = lockedUntil - now;
-  log.utils("Locked until utc  : %d", lockedUntil);
-  log.utils("Current time is   : %d", now);
-  log.utils("Remaining time is : %d", remainingTime);
+  receiverLogger.verbose("Locked until utc  : %d", lockedUntil);
+  receiverLogger.verbose("Current time is   : %d", now);
+  receiverLogger.verbose("Remaining time is : %d", remainingTime);
   if (remainingTime < 1000) {
     return 0;
   }
   const buffer = Math.min(remainingTime / 2, 10000); // 10 seconds
   const renewAfter = remainingTime - buffer;
-  log.utils("Renew after       : %d", renewAfter);
+  receiverLogger.verbose("Renew after       : %d", renewAfter);
   return renewAfter;
-}
-
-export function getDispositionType(
-  dispositionStatus: DispositionStatus
-): DispositionType | undefined {
-  if (dispositionStatus === DispositionStatus.abandoned) return DispositionType.abandon;
-  else if (dispositionStatus === DispositionStatus.completed) return DispositionType.complete;
-  else if (dispositionStatus === DispositionStatus.defered) return DispositionType.defer;
-  else if (dispositionStatus === DispositionStatus.suspended) return DispositionType.deadletter;
-  return undefined;
 }
 
 /**
  * @internal
- * @ignore
  * Converts the .net ticks to a JS Date object.
  *
  * - The epoch for the DateTimeOffset type is `0000-01-01`, while the epoch for JS Dates is
@@ -117,44 +121,26 @@ export function getDispositionType(
  * - Ticks in DateTimeOffset is `1/10000000` second, while ticks in JS Date is `1/1000` second.
  *   - Thus, we `divide` the value by `10000` to convert it to JS Date ticks.
  *
- * @param buf Input as a Buffer
- * @returns Date The JS Date object.
+ * @param buf - Input as a Buffer
+ * @returns The JS Date object.
  */
 export function convertTicksToDate(buf: number[]): Date {
   const epochMicroDiff: number = 621355968000000000;
   const longValue: Long = Long.fromBytesBE(buf);
-  const timeInMS = longValue
-    .sub(epochMicroDiff)
-    .div(10000)
-    .toNumber();
+  const timeInMS = longValue.sub(epochMicroDiff).div(10000).toNumber();
   const result = new Date(timeInMS);
-  log.utils("The converted date is: %s", result.toString());
+  logger.verbose("The converted date is: %s", result.toString());
   return result;
 }
 
 /**
  * @internal
- * @ignore
- * Returns the number of logical processors in the system.
- */
-export function getProcessorCount(): number {
-  if (isNode) {
-    const os = require("os");
-    return os.cpus().length;
-  } else {
-    return navigator.hardwareConcurrency || 1;
-  }
-}
-
-/**
- * @internal
- * @ignore
  * Converts any given input to a Buffer.
- * @param input The input that needs to be converted to a Buffer.
+ * @param input - The input that needs to be converted to a Buffer.
  */
-export function toBuffer(input: any): Buffer {
+export function toBuffer(input: unknown): Buffer {
   let result: any;
-  log.utils(
+  messageLogger.verbose(
     "[utils.toBuffer] The given message body that needs to be converted to buffer is: ",
     input
   );
@@ -173,24 +159,22 @@ export function toBuffer(input: any): Buffer {
         `An error occurred while executing JSON.stringify() on the given input ` +
         input +
         `${err instanceof Error ? err.stack : JSON.stringify(err)}`;
-      log.error("[utils.toBuffer] " + msg);
+      messageLogger.warning("[utils.toBuffer] " + msg);
       throw err instanceof Error ? err : new Error(msg);
     }
   }
-  log.utils("[utils.toBuffer] The converted buffer is: %O.", result);
+  messageLogger.verbose("[utils.toBuffer] The converted buffer is: %O.", result);
   return result;
 }
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve `string` value from given string,
  * or throws error if undefined.
- * @param value
  */
-export function getString(value: any, nameOfProperty: string): string {
+export function getString(value: unknown, nameOfProperty: string): string {
   const result = getStringOrUndefined(value);
-  if (result == undefined) {
+  if (result === undefined) {
     throw new Error(
       `"${nameOfProperty}" received from service expected to be a string value and not undefined.`
     );
@@ -200,13 +184,12 @@ export function getString(value: any, nameOfProperty: string): string {
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve `string` value from given input,
  * or undefined if not passed in.
- * @param value
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getStringOrUndefined(value: any): string | undefined {
-  if (value == undefined) {
+  if (!isDefined(value)) {
     return undefined;
   }
   return value.toString();
@@ -214,14 +197,12 @@ export function getStringOrUndefined(value: any): string | undefined {
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve `integer` value from given string,
  * or throws error if undefined.
- * @param value
  */
-export function getInteger(value: any, nameOfProperty: string): number {
+export function getInteger(value: unknown, nameOfProperty: string): number {
   const result = getIntegerOrUndefined(value);
-  if (result == undefined) {
+  if (result === undefined) {
     throw new Error(
       `"${nameOfProperty}" received from service expected to be a number value and not undefined.`
     );
@@ -231,29 +212,34 @@ export function getInteger(value: any, nameOfProperty: string): number {
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve `integer` value from given string,
  * or undefined if not passed in.
- * @param value
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getIntegerOrUndefined(value: any): number | undefined {
-  if (value == undefined) {
+  if (!isDefined(value)) {
     return undefined;
   }
   const result = parseInt(value.toString());
-  return result == NaN ? undefined : result;
+  return isNaN(result) ? undefined : result;
 }
 
 /**
  * @internal
- * @ignore
+ * Helper utility to convert ISO-8601 time into Date type.
+ */
+export function getDate(value: string, nameOfProperty: string): Date {
+  return new Date(getString(value, nameOfProperty));
+}
+
+/**
+ * @internal
  * Helper utility to retrieve `boolean` value from given string,
  * or throws error if undefined.
- * @param value
  */
-export function getBoolean(value: any, nameOfProperty: string): boolean {
+export function getBoolean(value: unknown, nameOfProperty: string): boolean {
   const result = getBooleanOrUndefined(value);
-  if (result == undefined) {
+  if (result === undefined) {
     throw new Error(
       `"${nameOfProperty}" received from service expected to be a boolean value and not undefined.`
     );
@@ -263,57 +249,107 @@ export function getBoolean(value: any, nameOfProperty: string): boolean {
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve `boolean` value from given string,
  * or undefined if not passed in.
- * @param value
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getBooleanOrUndefined(value: any): boolean | undefined {
-  if (value == undefined) {
+  if (!isDefined(value)) {
     return undefined;
   }
-  return (
-    value
-      .toString()
-      .trim()
-      .toLowerCase() === "true"
-  );
+  return value.toString().trim().toLowerCase() === "true";
 }
 
 /**
  * @internal
- * @ignore
+ * Helps in differentiating JSON like objects from other kinds of objects.
+ */
+const EMPTY_JSON_OBJECT_CONSTRUCTOR = {}.constructor;
+
+/**
+ * @internal
  * Returns `true` if given input is a JSON like object.
- * @param value
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function isJSONLikeObject(value: any): boolean {
-  return typeof value === "object" && !(value instanceof Number) && !(value instanceof String);
+  // `value.constructor === {}.constructor` differentiates among the "object"s,
+  //    would filter the JSON objects and won't match any array or other kinds of objects
+
+  // -------------------------------------------------------------------------------
+  // Few examples       | typeof obj ==="object" |  obj.constructor==={}.constructor
+  // -------------------------------------------------------------------------------
+  // {abc:1}            | true                   | true
+  // ["a","b"]          | true                   | false
+  // [{"a":1},{"b":2}]  | true                   | false
+  // new Date()         | true                   | false
+  // 123                | false                  | false
+  // -------------------------------------------------------------------------------
+  return typeof value === "object" && value.constructor === EMPTY_JSON_OBJECT_CONSTRUCTOR;
 }
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve message count details from given input,
- * or undefined if not passed in.
- * @param value
  */
-export function getCountDetailsOrUndefined(value: any): MessageCountDetails | undefined {
-  if (value == undefined) {
-    return undefined;
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function getMessageCountDetails(value: any): MessageCountDetails {
+  const xmlnsPrefix = getXMLNSPrefix(value);
+  if (!isDefined(value)) {
+    value = {};
   }
   return {
-    activeMessageCount: parseInt(value["d2p1:ActiveMessageCount"]) || 0,
-    deadLetterMessageCount: parseInt(value["d2p1:DeadLetterMessageCount"]) || 0,
-    scheduledMessageCount: parseInt(value["d2p1:ScheduledMessageCount"]) || 0,
-    transferMessageCount: parseInt(value["d2p1:TransferMessageCount"]) || 0,
-    transferDeadLetterMessageCount: parseInt(value["d2p1:TransferDeadLetterMessageCount"]) || 0
+    activeMessageCount: parseInt(value[`${xmlnsPrefix}:ActiveMessageCount`]) || 0,
+    deadLetterMessageCount: parseInt(value[`${xmlnsPrefix}:DeadLetterMessageCount`]) || 0,
+    scheduledMessageCount: parseInt(value[`${xmlnsPrefix}:ScheduledMessageCount`]) || 0,
+    transferMessageCount: parseInt(value[`${xmlnsPrefix}:TransferMessageCount`]) || 0,
+    transferDeadLetterMessageCount:
+      parseInt(value[`${xmlnsPrefix}:TransferDeadLetterMessageCount`]) || 0,
   };
 }
 
 /**
  * @internal
- * @ignore
+ * Gets the xmlns prefix from the root of the objects that are part of the parsed response body.
+ */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function getXMLNSPrefix(value: any): string {
+  if (!value[Constants.XML_METADATA_MARKER]) {
+    throw new Error(
+      `Error occurred while parsing the response body - cannot find the XML_METADATA_MARKER "$" on the object ${JSON.stringify(
+        value
+      )}`
+    );
+  }
+  const keys = Object.keys(value[Constants.XML_METADATA_MARKER]);
+  if (keys.length !== 1) {
+    throw new Error(
+      `Error occurred while parsing the response body - unexpected number of "xmlns:\${prefix}" keys at ${JSON.stringify(
+        value[Constants.XML_METADATA_MARKER]
+      )}`
+    );
+  }
+  if (!keys[0].startsWith("xmlns:")) {
+    throw new Error(
+      `Error occurred while parsing the response body - unexpected key at ${JSON.stringify(
+        value[Constants.XML_METADATA_MARKER]
+      )}`
+    );
+  }
+  // Pick the substring that's after "xmlns:"
+  const xmlnsPrefix = keys[0].substring(6);
+  if (!xmlnsPrefix) {
+    throw new Error(
+      `Error occurred while parsing the response body - unexpected xmlns prefix at ${JSON.stringify(
+        value[Constants.XML_METADATA_MARKER]
+      )}`
+    );
+  }
+  return xmlnsPrefix;
+}
+
+/**
  * Represents type of message count details in ATOM based management operations.
+ * @internal
  */
 export type MessageCountDetails = {
   activeMessageCount: number;
@@ -324,26 +360,37 @@ export type MessageCountDetails = {
 };
 
 /**
- * @internal
- * @ignore
  * Represents type of `AuthorizationRule` in ATOM based management operations.
  */
-export type AuthorizationRule = {
+export interface AuthorizationRule {
+  /**
+   * The claim type.
+   */
   claimType: string;
-  claimValue: string;
-  rights: { accessRights?: string[] };
+  /**
+   * The list of rights("Manage" | "Send" | "Listen").
+   */
+  accessRights?: ("Manage" | "Send" | "Listen")[];
+  /**
+   * The authorization rule key name.
+   */
   keyName: string;
+  /**
+   * The primary key for the authorization rule.
+   */
   primaryKey?: string;
+  /**
+   * The secondary key for the authorization rule.
+   */
   secondaryKey?: string;
-};
+}
 
 /**
  * @internal
- * @ignore
  * Helper utility to retrieve array of `AuthorizationRule` from given input,
  * or undefined if not passed in.
- * @param value
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getAuthorizationRulesOrUndefined(value: any): AuthorizationRule[] | undefined {
   const authorizationRules: AuthorizationRule[] = [];
 
@@ -352,7 +399,7 @@ export function getAuthorizationRulesOrUndefined(value: any): AuthorizationRule[
     return undefined;
   }
 
-  if (value == undefined) {
+  if (!isDefined(value)) {
     return undefined;
   }
 
@@ -369,45 +416,35 @@ export function getAuthorizationRulesOrUndefined(value: any): AuthorizationRule[
 
 /**
  * @internal
- * @ignore
  * Helper utility to build an instance of parsed authorization rule as `AuthorizationRule` from given input.
- * @param value
  */
 function buildAuthorizationRule(value: any): AuthorizationRule {
   let accessRights;
-  if (value["Rights"] != undefined) {
+  if (isDefined(value["Rights"])) {
     accessRights = value["Rights"]["AccessRights"];
   }
 
   const authorizationRule: AuthorizationRule = {
     claimType: value["ClaimType"],
-    claimValue: value["ClaimValue"],
-    rights: {
-      accessRights: accessRights
-    },
+    accessRights,
     keyName: value["KeyName"],
     primaryKey: value["PrimaryKey"],
-    secondaryKey: value["SecondaryKey"]
+    secondaryKey: value["SecondaryKey"],
   };
 
-  if (
-    authorizationRule.rights.accessRights &&
-    !Array.isArray(authorizationRule.rights.accessRights)
-  ) {
-    authorizationRule.rights.accessRights = [authorizationRule.rights.accessRights];
+  if (authorizationRule.accessRights && !Array.isArray(authorizationRule.accessRights)) {
+    authorizationRule.accessRights = [authorizationRule.accessRights];
   }
   return authorizationRule;
 }
 
 /**
  * @internal
- * @ignore
  * Helper utility to extract output containing array of `RawAuthorizationRule` instances from given input,
  * or undefined if not passed in.
- * @param value
  */
 export function getRawAuthorizationRules(authorizationRules: AuthorizationRule[] | undefined): any {
-  if (authorizationRules == undefined) {
+  if (!isDefined(authorizationRules)) {
     return undefined;
   }
 
@@ -430,9 +467,8 @@ export function getRawAuthorizationRules(authorizationRules: AuthorizationRule[]
 
 /**
  * @internal
- * @ignore
  * Helper utility to build an instance of raw authorization rule as RawAuthorizationRule from given `AuthorizationRule` input.
- * @param authorizationRule parsed Authorization Rule instance
+ * @param authorizationRule - parsed Authorization Rule instance
  */
 function buildRawAuthorizationRule(authorizationRule: AuthorizationRule): any {
   if (!isJSONLikeObject(authorizationRule) || authorizationRule === null) {
@@ -447,35 +483,32 @@ function buildRawAuthorizationRule(authorizationRule: AuthorizationRule): any {
 
   const rawAuthorizationRule: any = {
     ClaimType: authorizationRule.claimType,
-    ClaimValue: authorizationRule.claimValue,
+    // ClaimValue is not settable by the users, but service expects the value for PUT requests
+    ClaimValue: "None",
     Rights: {
-      AccessRights: authorizationRule.rights.accessRights
+      AccessRights: authorizationRule.accessRights,
     },
     KeyName: authorizationRule.keyName,
     PrimaryKey: authorizationRule.primaryKey,
-    SecondaryKey: authorizationRule.secondaryKey
+    SecondaryKey: authorizationRule.secondaryKey,
   };
   rawAuthorizationRule[Constants.XML_METADATA_MARKER] = {
     "p5:type": "SharedAccessAuthorizationRule",
-    "xmlns:p5": "http://www.w3.org/2001/XMLSchema-instance"
+    "xmlns:p5": "http://www.w3.org/2001/XMLSchema-instance",
   };
   return rawAuthorizationRule;
 }
 
 /**
  * @internal
- * @ignore
  * Helper utility to check if given string is an absolute URL
- * @param url
  */
-export function isAbsoluteUrl(url: string) {
+export function isAbsoluteUrl(url: string): boolean {
   const _url = url.toLowerCase();
   return _url.startsWith("sb://") || _url.startsWith("http://") || _url.startsWith("https://");
 }
 
 /**
- * @internal
- * @ignore
  * Possible values for `status` of the Service Bus messaging entities.
  */
 export type EntityStatus =
@@ -488,3 +521,192 @@ export type EntityStatus =
   | "Renaming"
   | "Restoring"
   | "Unknown";
+
+/**
+ * Possible values for `availabilityStatus` of the Service Bus messaging entities.
+ */
+export type EntityAvailabilityStatus =
+  | "Available"
+  | "Limited"
+  | "Renaming"
+  | "Restoring"
+  | "Unknown";
+
+/**
+ * @internal
+ */
+type setTimeoutArgs = (callback: (...args: any[]) => void, ms: number, ...args: any[]) => any;
+
+/**
+ * An executor for a function that returns a Promise that obeys both a timeout and an
+ * optional AbortSignal.
+ * @param timeoutMs - The number of milliseconds to allow before throwing an OperationTimeoutError.
+ * @param timeoutMessage - The message to place in the .description field for the thrown exception for Timeout.
+ * @param abortSignal - The abortSignal associated with containing operation.
+ * @param abortErrorMsg - The abort error message associated with containing operation.
+ * @param value - The value to be resolved with after a timeout of t milliseconds.
+ *
+ * @internal
+ */
+export async function waitForTimeoutOrAbortOrResolve<T>(args: {
+  actionFn: () => Promise<T>;
+  timeoutMs: number;
+  timeoutMessage: string;
+  abortSignal?: AbortSignalLike;
+  // these are optional and only here for testing.
+  timeoutFunctions?: {
+    setTimeoutFn: setTimeoutArgs;
+    clearTimeoutFn: (timeoutId: any) => void;
+  };
+}): Promise<T> {
+  if (args.abortSignal && args.abortSignal.aborted) {
+    throw new AbortError(StandardAbortMessage);
+  }
+
+  let timer: any | undefined = undefined;
+  let clearAbortSignal: (() => void) | undefined = undefined;
+
+  const clearAbortSignalAndTimer = (): void => {
+    (args.timeoutFunctions?.clearTimeoutFn ?? clearTimeout)(timer);
+
+    if (clearAbortSignal) {
+      clearAbortSignal();
+    }
+  };
+
+  // eslint-disable-next-line promise/param-names
+  const abortOrTimeoutPromise = new Promise<T>((_resolve, reject) => {
+    clearAbortSignal = checkAndRegisterWithAbortSignal(reject, args.abortSignal);
+
+    timer = (args.timeoutFunctions?.setTimeoutFn ?? setTimeout)(() => {
+      reject(new OperationTimeoutError(args.timeoutMessage));
+    }, args.timeoutMs);
+  });
+
+  try {
+    return await Promise.race([abortOrTimeoutPromise, args.actionFn()]);
+  } finally {
+    clearAbortSignalAndTimer();
+  }
+}
+
+/**
+ * Registers listener to the abort event on the abortSignal to call your abortFn and
+ * returns a function that will clear the same listener.
+ *
+ * If abort signal is already aborted, then throws an AbortError and returns a function that does nothing
+ *
+ * @returns A function that removes any of our attached event listeners on the abort signal or an empty function if
+ * the abortSignal was not defined.
+ *
+ * @internal
+ */
+export function checkAndRegisterWithAbortSignal(
+  onAbortFn: (abortError: AbortError) => void,
+  abortSignal?: AbortSignalLike
+): () => void {
+  if (abortSignal == null) {
+    return () => {
+      /** Nothing to do here, no abort signal */
+    };
+  }
+
+  if (abortSignal.aborted) {
+    throw new AbortError(StandardAbortMessage);
+  }
+
+  const onAbort = (): void => {
+    abortSignal.removeEventListener("abort", onAbort);
+    onAbortFn(new AbortError(StandardAbortMessage));
+  };
+
+  abortSignal.addEventListener("abort", onAbort);
+
+  return () => abortSignal.removeEventListener("abort", onAbort);
+}
+
+/**
+ * @internal
+ * The user agent prefix string for the ServiceBus client.
+ * See guideline at https://azure.github.io/azure-sdk/general_azurecore.html#telemetry-policy
+ */
+export const libInfo: string = `azsdk-js-azureservicebus/${Constants.packageJsonInfo.version}`;
+
+/**
+ * @internal
+ * Returns the formatted prefix by removing the spaces, by appending the libInfo.
+ */
+export function formatUserAgentPrefix(prefix?: string): string {
+  let userAgentPrefix = `${(prefix || "").replace(" ", "")}`;
+  userAgentPrefix = userAgentPrefix.length > 0 ? userAgentPrefix + " " : "";
+  return `${userAgentPrefix}${libInfo}`;
+}
+
+/**
+ * @internal
+ * Helper method which returns `HttpResponse` from an object of shape `PipelineResponse`.
+ * TODO: remove this and use toHttpResponse() directly
+ */
+export const getHttpResponseOnly = (pipelineResponse: PipelineResponse): HttpResponse =>
+  toHttpResponse(pipelineResponse);
+
+/**
+ * @internal
+ * Type with the service versions for the ATOM API.
+ */
+export type ServiceBusAtomAPIVersion = "2021-05" | "2017-04";
+
+/**
+ * @internal
+ * Waits for one second if a sender is not sendable then check again. Throws
+ * SenderBusyError if it is still not sendable.
+ * Only waits when operation timeout is greater than one second.
+ * @returns the actual waiting time.
+ */
+export async function waitForSendable(
+  sendLogger: ServiceBusLogger,
+  logPrefix: string,
+  name: string,
+  timeout: number,
+  sender:
+    | {
+        sendable: () => boolean;
+        credit: number;
+      }
+    | undefined,
+  outgoingAvaiable: number
+): Promise<number> {
+  let waitTimeForSendable = 1000;
+  if (!sender?.sendable() && timeout > waitTimeForSendable) {
+    sendLogger.verbose(
+      "%s Sender '%s', waiting for 1 second for sender to become sendable",
+      logPrefix,
+      name
+    );
+
+    await delay(waitTimeForSendable);
+
+    sendLogger.verbose(
+      "%s Sender '%s' after waiting for a second, credit: %d available: %d",
+      logPrefix,
+      name,
+      sender?.credit,
+      outgoingAvaiable
+    );
+  } else {
+    waitTimeForSendable = 0;
+  }
+
+  if (!sender?.sendable()) {
+    // let us retry to send the message after some time.
+    const msg =
+      `[${logPrefix}] Sender "${name}", ` + `cannot send the message right now. Please try later.`;
+    sendLogger.warning(msg);
+    const amqpError: AmqpError = {
+      condition: ErrorNameConditionMapper.SenderBusyError,
+      description: msg,
+    };
+    throw translateServiceBusError(amqpError);
+  }
+  return waitTimeForSendable;
+}

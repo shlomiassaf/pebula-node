@@ -1,4 +1,4 @@
-import { Sender, Receiver, ServiceBusClient, ReceiveMode, SessionReceiverOptions, SessionReceiver } from '@azure/service-bus';
+import { ServiceBusSender, ServiceBusReceiver, ServiceBusClient, ServiceBusSessionReceiverOptions, ServiceBusSessionReceiver, ServiceBusReceiverOptions } from '@azure/service-bus';
 
 import { SbResourceGroup } from '../resource-group';
 import { SbChannelManagerContainerStore } from './channel-manager-container-store';
@@ -28,58 +28,58 @@ export class SbChannelManager {
     this.containers.updateClients(this.rxClient, this.txClient);
   }
 
-  getQueryReceiver(name: string): Receiver | SessionReceiver | undefined {
+  getQueryReceiver(name: string): ServiceBusReceiver | ServiceBusSessionReceiver | undefined {
     const queueContainer = this.containers.findQueue(name);
     if (queueContainer) {
       return queueContainer.receiver;
     }
   }
 
-  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode): Receiver;
-  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions: SessionReceiverOptions): SessionReceiver;
-  getCreateQueryReceiver(name: string, receiveMode: ReceiveMode, sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
-    return this.containers.findQueue(name, true).getCreateReceiver(receiveMode, sessionReceiverOptions);
+  getCreateQueryReceiver(name: string, receiveMode: 'peekLock' | 'receiveAndDelete'): ServiceBusReceiver;
+  getCreateQueryReceiver(name: string, receiveMode: 'peekLock' | 'receiveAndDelete', receiverOptions: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions): ServiceBusReceiver | ServiceBusSessionReceiver;
+  getCreateQueryReceiver(name: string, receiveMode: 'peekLock' | 'receiveAndDelete', receiverOptions?: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions): ServiceBusReceiver | ServiceBusSessionReceiver {
+    return this.containers.findQueue(name, true).getCreateReceiver(receiveMode, receiverOptions);
   }
 
-  getQuerySender(name: string): Sender | undefined {
+  getQuerySender(name: string): ServiceBusSender | undefined {
     const queueContainer = this.containers.findQueue(name);
     if (queueContainer) {
       return queueContainer.sender;
     }
   }
 
-  getCreateQuerySender(name: string): Sender {
+  getCreateQuerySender(name: string): ServiceBusSender {
     return this.containers.findQueue(name, true).getCreateSender();
   }
 
-  getTopicSender(name: string): Sender | undefined {
+  getTopicSender(name: string): ServiceBusSender | undefined {
     const topicContainer = this.containers.findTopic(name);
     if (topicContainer) {
       return topicContainer.sender;
     }
   }
 
-  getCreateTopic(topicName: string): Sender {
+  getCreateTopic(topicName: string): ServiceBusSender {
     return this.containers.findTopic(topicName, true).getCreateSender();
   }
 
-  getSubscription(topicName: string, subscriptionName: string): Receiver | SessionReceiver | undefined {
+  getSubscription(topicName: string, subscriptionName: string): ServiceBusReceiver | ServiceBusSessionReceiver | undefined {
     const topicContainer = this.containers.findTopic(topicName);
     if (topicContainer) {
       return topicContainer.getReceiver(subscriptionName);
     }
   }
 
-  getCreateSubscription(topicName: string, subscriptionName: string, receiveMode: ReceiveMode): Receiver;
+  getCreateSubscription(topicName: string, subscriptionName: string, receiveMode: 'peekLock' | 'receiveAndDelete'): ServiceBusReceiver;
   getCreateSubscription(topicName: string,
                         subscriptionName: string,
-                        receiveMode: ReceiveMode,
-                        sessionReceiverOptions: SessionReceiverOptions): SessionReceiver;
+                        receiveMode: 'peekLock' | 'receiveAndDelete',
+                        receiverOptions: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions): ServiceBusSessionReceiver;
   getCreateSubscription(topicName: string,
-                        subscriptionName: string, receiveMode: ReceiveMode,
-                        sessionReceiverOptions?: SessionReceiverOptions): Receiver | SessionReceiver {
+                        subscriptionName: string, receiveMode: 'peekLock' | 'receiveAndDelete',
+                        receiverOptions?: ServiceBusSessionReceiverOptions | ServiceBusReceiverOptions): ServiceBusReceiver | ServiceBusSessionReceiver {
     return this.containers.findTopic(topicName, true)
-      .getCreateReceiver(subscriptionName, receiveMode, sessionReceiverOptions);
+      .getCreateReceiver(subscriptionName, receiveMode, receiverOptions);
   }
 
 }

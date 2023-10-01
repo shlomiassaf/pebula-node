@@ -11,8 +11,8 @@ export class SubscriptionRouteHandler extends SbSubscriberRouteHandler<'subscrip
   }
 
   protected createReceiver(context: SbSubscriberRoutingContext, options: SbSubscriptionMetadataOptions) {
-    const { topicName, name, receiveMode, sessionOptions } = options;
-    return context.channelManager.getCreateSubscription(topicName, name, receiveMode, sessionOptions);
+    const { topicName, name, receiveMode, sessionOptions, handlerOptions } = options;
+    return context.channelManager.getCreateSubscription(topicName, name, receiveMode, sessionOptions ?? handlerOptions);
   }
 
 }

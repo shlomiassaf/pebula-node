@@ -1,5 +1,4 @@
-import { ServiceBusManagementClientOptions } from '@azure/arm-servicebus/esm/models';
-import { ServiceBusManagementClient } from '@azure/arm-servicebus';
+import { ServiceBusManagementClient, ServiceBusManagementClientOptionalParams } from '@azure/arm-servicebus';
 import {
   SbConnectionOptions,
   ServiceBusManagementAadTokenCredentials,
@@ -10,7 +9,7 @@ import { SbQueue, SbTopic, SbSubscription, SbRule } from '../src/models';
 import { convertFromRule, convertToSubscription, convertToRule, convertToTopic, convertToQueue } from './management-client-arm-adapter-converters';
 
 export interface SbManagementClientArmOptions
-  extends SbConnectionOptions<ServiceBusManagementAadTokenCredentials, ServiceBusManagementClientOptions> {
+  extends SbConnectionOptions<ServiceBusManagementAadTokenCredentials, ServiceBusManagementClientOptionalParams> {
   defaults?: SbManagementDefaultsAdapter;
 }
 
@@ -40,7 +39,7 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     return convertToQueue(result);
   }
   async deleteQueue(queueName: string) {
-    await this.managementClient.queues.deleteMethod(this.resourceGroupName, this.namespace, queueName);
+    await this.managementClient.queues.delete(this.resourceGroupName, this.namespace, queueName);
   }
 
   async getTopic(topicName: string): Promise<SbTopic> {
@@ -52,7 +51,7 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     return convertToTopic(result);
   }
   async deleteTopic(topicName: string) {
-    await this.managementClient.topics.deleteMethod(this.resourceGroupName, this.namespace, topicName);
+    await this.managementClient.topics.delete(this.resourceGroupName, this.namespace, topicName);
   }
 
   async getSubscription(topicName: string, subscriptionName: string): Promise<SbSubscription> {
@@ -65,13 +64,11 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
     return convertToSubscription(result);
   }
   async deleteSubscription(topicName: string, subscriptionName: string) {
-    await this.managementClient.subscriptions.deleteMethod(this.resourceGroupName, this.namespace, topicName, subscriptionName);
+    await this.managementClient.subscriptions.delete(this.resourceGroupName, this.namespace, topicName, subscriptionName);
   }
 
   async getRule(topicName: string, subscriptionName: string, ruleName: string): Promise<SbRule> {
     return convertToRule(
-      topicName,
-      subscriptionName,
       ruleName,
       await this.managementClient.rules.get(this.resourceGroupName, this.namespace, topicName, subscriptionName, ruleName),
     );
@@ -85,10 +82,10 @@ export class SbManagementClientArmAdapter implements SbManagementClientAdapter {
       ruleName,
       convertFromRule(rule),
     );
-    return convertToRule(topicName, subscriptionName, ruleName, armRule);
+    return convertToRule(ruleName, armRule);
   }
   async deleteRule(topicName: string, subscriptionName: string, ruleName: string) {
-    await this.managementClient.rules.deleteMethod(this.resourceGroupName, this.namespace, topicName, subscriptionName, ruleName);
+    await this.managementClient.rules.delete(this.resourceGroupName, this.namespace, topicName, subscriptionName, ruleName);
   }
 
 }

@@ -49,16 +49,16 @@ export class ConfigService {
         queue: {
           deadLetteringOnMessageExpiration: true,
           maxSizeInMegabytes: 1024,
-          defaultMessageTtl: 'P14D',
+          defaultMessageTimeToLive : 'P14D',
           lockDuration: 'PT5M',
         },
         topic: {
-          defaultMessageTtl: 'P14D',
+          defaultMessageTimeToLive : 'P14D',
           maxSizeInMegabytes: 1024,
         },
         subscription: {
           deadLetteringOnMessageExpiration: true,
-          defaultMessageTtl: 'P14D',
+          defaultMessageTimeToLive : 'P14D',
           lockDuration: 'PT5M',
         },
       },
