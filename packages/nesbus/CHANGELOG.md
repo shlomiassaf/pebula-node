@@ -1,3 +1,19 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## [0.0.7-servicebus.2](https://github.com/shlomiassaf/pebula-node/compare/@pebula/nesbus@0.0.5...@pebula/nesbus@0.0.7-servicebus.2) (2024-01-23)
+
+
+### Bug Fixes
+
+* **nesbus:** pass options to underlying library ([493b4d3](https://github.com/shlomiassaf/pebula-node/commit/493b4d39ffa817cbb4fa8501b8cba1cae80d9263))
+
+
+
+
+
 ## 0.0.7 (2023-10-01)
 ### Features
 * **nesbus:** Supporting version 7.9.1 of `@azure/service-bus`
