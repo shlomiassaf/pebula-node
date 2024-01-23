@@ -1,6 +1,6 @@
 {
   "name": "@pebula/nesbus",
-  "version": "0.0.7",
+  "version": "0.0.7-servicebus.1",
   "main": "cjs/index.js",
   "types": "cjs/index.d.ts",
   "files": [
